@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: pto-web
+    env: python
+    plan: starter
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn -k eventlet -w 1 --chdir backend main:create_app --bind 0.0.0.0:$PORT"
+    disk:
+      name: pto-data
+      mountPath: /opt/render/project/src/backend/core
+      sizeGB: 1
