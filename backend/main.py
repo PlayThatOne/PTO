@@ -488,6 +488,40 @@ def create_app():
 
     return app
 
+# Para servidores WSGI (Gunicorn, Render, etc.)
+app = create_app()
+
+from pathlib import Path
+from flask import Flask, send_from_directory
+
+def create_app():
+    print(">> creando app")
+
+    # === RUTA ABSOLUTA A PUBLIC ===
+    BASE_DIR = Path(__file__).resolve().parents[1]  # .../project/src/backend -> parents[1] = .../project/src
+    PUBLIC_DIR = BASE_DIR / "frontend" / "public"
+
+    # Flask servirá los estáticos desde / (raíz)
+    app = Flask(__name__, static_folder=str(PUBLIC_DIR), static_url_path='')
+
+    # ... (tu configuración actual: CORS, SocketIO, etc.)
+    # socketio = SocketIO(app, ...)
+
+    # === RUTAS ESTÁTICAS ===
+    @app.route('/')
+    def root():
+        return app.send_static_file('index.html')
+
+    @app.route('/<path:filename>')
+    def static_files(filename):
+        # sirve cualquier archivo que esté bajo frontend/public
+        return send_from_directory(str(PUBLIC_DIR), filename)
+
+    # (tus rutas API y lógica existentes)
+    # ...
+
+    return app
+
 if __name__ == '__main__':
     import traceback
     try:
