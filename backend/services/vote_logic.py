@@ -1,3 +1,10 @@
+# backend/services/vote_logic.py
+try:
+    from backend.core.config import VOTES_FILE as VOTES_PATH, SONG_STATES_FILE
+except ModuleNotFoundError:
+    # Si el import absoluto no está disponible, usa relativo
+    from ..core.config import VOTES_FILE as VOTES_PATH, SONG_STATES_FILE  # type: ignore
+
 import os
 import json
 from collections import Counter
