@@ -1,5 +1,6 @@
 # backend/services/vote_logic.py
-# --- config import con triple fallback ---
+
+# --- ÚNICO import de config (con triple fallback) ---
 try:
     from backend.core.config import VOTES_FILE as VOTES_PATH, SONG_STATES_FILE
 except Exception:
@@ -26,36 +27,31 @@ except Exception:
 import os
 import json
 from collections import Counter
-from backend.core.config import VOTES_FILE as VOTES_PATH
 
-VOTES_FILE = VOTES_PATH
-
-SONG_STATES_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'core', 'song_states.json'))
-print(">> PATH ABSOLUTO DE STATES:", SONG_STATES_FILE)
+VOTES_FILE = VOTES_PATH  # alias local
 
 def load_votes():
     try:
-        with open(VOTES_FILE, 'r') as f:
+        with open(VOTES_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError):
         return {}
 
-def save_votes(states):
-    print(">> save_votes llamado con:", states)
-    with open(VOTES_FILE, 'w') as f:
-        json.dump(states, f)
+def save_votes(votes):
+    with open(VOTES_FILE, "w", encoding="utf-8") as f:
+        json.dump(votes, f, ensure_ascii=False, indent=2)
 
 def count_votes(states):
     return dict(Counter(states.values()))
 
 def load_states():
     try:
-        with open(SONG_STATES_FILE, 'r') as f:
+        with open(SONG_STATES_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    except FileNotFoundError:
-        return {}
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"now_playing": None, "played": []}
 
 def save_states(states):
-    print(">> save_states llamado con:", states)
-    with open(SONG_STATES_FILE, 'w') as f:
-        json.dump(states, f, indent=2)
+    with open(SONG_STATES_FILE, "w", encoding="utf-8") as f:
+        json.dump(states, f, ensure_ascii=False, indent=2)
+
