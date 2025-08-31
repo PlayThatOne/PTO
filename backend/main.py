@@ -51,16 +51,15 @@ def create_app():
     socketio.init_app(app, cors_allowed_origins="*")
     print(">> socketio registrado")
 
-# --- Asegurar CSV de catálogo en el disk ---
-from pathlib import Path
-CATALOG_CSV = Path(__file__).resolve().parent / "core" / "catalog_postgres.csv"
-if not CATALOG_CSV.exists():
-    CATALOG_CSV.parent.mkdir(parents=True, exist_ok=True)
-    with open(CATALOG_CSV, "w", newline="", encoding="utf-8") as f:
-        f.write("id;name;artist;year;language;genre;duration;mood;key;tempo;enabled\n")
-    print(f">> creado {CATALOG_CSV}")
-else:
-    print(f">> encontrado {CATALOG_CSV}")
+    # --- Asegurar CSV de catálogo en el disk ---
+    CATALOG_CSV = Path(__file__).resolve().parent / "core" / "catalog_postgres.csv"
+    if not CATALOG_CSV.exists():
+        CATALOG_CSV.parent.mkdir(parents=True, exist_ok=True)
+        with open(CATALOG_CSV, "w", newline="", encoding="utf-8") as f:
+            f.write("id;name;artist;year;language;genre;duration;mood;key;tempo;enabled\n")
+        print(f">> creado {CATALOG_CSV}")
+    else:
+        print(f">> encontrado {CATALOG_CSV}")
 
     # ===== RUTAS ESTÁTICAS BÁSICAS =====
     @app.route("/")
@@ -68,7 +67,6 @@ else:
         # Sirve /index.html
         return app.send_static_file("index.html")
 
-    # Estos endpoints siguen sirviendo ficheros de apoyo (opcional: ya los serviría el estático)
     @app.route("/catalog/<path:filename>")
     def catalog(filename):
         return send_from_directory(str(PUBLIC_DIR / "catalog"), filename)
@@ -166,8 +164,8 @@ else:
                     data.get("duration", ""),
                     data.get("mood", ""),
                     data.get("key", ""),
-                    data.get("tempo", ""),
-                    "Y",  # ✅ enabled por defecto
+                    data.get("tempo", ""),  # coma necesaria
+                    "Y",                    # enabled por defecto
                 ])
 
             lyrics_path.parent.mkdir(parents=True, exist_ok=True)
@@ -301,27 +299,6 @@ else:
         catalog_csv = base_dir / "backend" / "core" / "catalog_postgres.csv"
         return send_file(str(catalog_csv), as_attachment=True)
 
-    @app.route("/upload-logo", methods=["POST"])
-    def upload_logo():
-        try:
-            file = request.files["logo"]
-            if not file:
-                return "No se recibió ningún archivo", 400
-
-            base_dir = Path(__file__).resolve().parents[1]
-            images_dir = base_dir / "songs" / "images"
-            images_dir.mkdir(parents=True, exist_ok=True)
-
-            ext = os.path.splitext(file.filename)[1].lower()
-            if ext not in [".png", ".jpg", ".jpeg"]:
-                return "Formato no permitido. Usa PNG o JPG.", 400
-
-            save_path = images_dir / ("event-logo" + ext)
-            file.save(str(save_path))
-            return "✅ Logo actualizado correctamente."
-        except Exception as e:
-            return f"❌ Error al subir logo: {str(e)}", 500
-
     @app.route("/list-songs")
     def list_songs():
         try:
@@ -358,7 +335,6 @@ else:
                 for row in reader:
                     if row["id"] in ids:
                         deleted.append(row["id"])
-                        # borrar archivos asociados
                         base_dir2 = Path(__file__).resolve().parents[1]
                         lyrics_path = base_dir2 / "songs" / "lyrics" / f"{row['id']}.txt"
                         tabs_path = base_dir2 / "songs" / "tabs" / f"TAB{row['id']}.txt"
@@ -428,7 +404,7 @@ else:
 
             fields = ["artist", "year", "language", "genre", "mood", "key"]
             values = defaultdict(set)
-            with open(csv_path, newline="", encoding="utf-8") as f:
+            with open(csv_path, newline"", encoding="utf-8") as f:
                 reader = csv.DictReader(f, delimiter=";")
                 for row in reader:
                     for field in fields:
