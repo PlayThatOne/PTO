@@ -20,7 +20,7 @@ print(">> socketio importado")
 
 from backend.services.vote_logic import load_votes, count_votes, save_votes, load_states
 
-# --- import robusto de rutas de persistencia (evita fallo si falta backend.core.config) ---
+# --- import robusto de rutas de persistencia ---
 try:
     from backend.core.config import VOTES_FILE, SONG_STATES_FILE
 except Exception:
@@ -33,7 +33,7 @@ except Exception:
         VOTES_FILE = os.path.join(CORE_DIR, "votes.json")
         SONG_STATES_FILE = os.path.join(CORE_DIR, "song_states.json")
 
-# === RUTA ABSOLUTA A frontend/public ===
+# Ruta absoluta a frontend/public
 PROJECT_ROOT = Path(__file__).resolve().parents[1]      # .../src
 PUBLIC_DIR   = PROJECT_ROOT / "frontend" / "public"
 print(f">> PUBLIC_DIR={PUBLIC_DIR}")
@@ -61,10 +61,9 @@ def create_app():
     else:
         print(f">> encontrado {CATALOG_CSV}")
 
-    # ===== RUTAS ESTÁTICAS BÁSICAS =====
+    # ===== RUTAS ESTÁTICAS =====
     @app.route("/")
     def root():
-        # Sirve /index.html
         return app.send_static_file("index.html")
 
     @app.route("/catalog/<path:filename>")
@@ -164,7 +163,7 @@ def create_app():
                     data.get("duration", ""),
                     data.get("mood", ""),
                     data.get("key", ""),
-                    data.get("tempo", ""),  # coma necesaria
+                    data.get("tempo", ""),  # coma correcta
                     "Y",                    # enabled por defecto
                 ])
 
@@ -404,7 +403,7 @@ def create_app():
 
             fields = ["artist", "year", "language", "genre", "mood", "key"]
             values = defaultdict(set)
-            with open(csv_path, newline"", encoding="utf-8") as f:
+            with open(csv_path, newline="", encoding="utf-8") as f:   # <- FIX: newline=""
                 reader = csv.DictReader(f, delimiter=";")
                 for row in reader:
                     for field in fields:
