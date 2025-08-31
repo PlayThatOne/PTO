@@ -166,7 +166,7 @@ else:
                     data.get("duration", ""),
                     data.get("mood", ""),
                     data.get("key", ""),
-                    data.get("tempo", "")
+                    data.get("tempo", ""),
                     "Y",  # ✅ enabled por defecto
                 ])
 
