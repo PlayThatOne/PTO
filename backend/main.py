@@ -51,16 +51,16 @@ def create_app():
     socketio.init_app(app, cors_allowed_origins="*")
     print(">> socketio registrado")
 
-        # --- Asegurar CSV de catálogo en el disk ---
-    from pathlib import Path
-    CATALOG_CSV = Path(__file__).resolve().parent / "core" / "catalog_postgres.csv"
-    if not CATALOG_CSV.exists():
-        CATALOG_CSV.parent.mkdir(parents=True, exist_ok=True)
-        with open(CATALOG_CSV, "w", newline="", encoding="utf-8") as f:
-            f.write("id;name;artist;year;language;genre;duration;mood;key;tempo\n")
-        print(f">> creado {CATALOG_CSV}")
-    else:
-        print(f">> encontrado {CATALOG_CSV}")
+# --- Asegurar CSV de catálogo en el disk ---
+from pathlib import Path
+CATALOG_CSV = Path(__file__).resolve().parent / "core" / "catalog_postgres.csv"
+if not CATALOG_CSV.exists():
+    CATALOG_CSV.parent.mkdir(parents=True, exist_ok=True)
+    with open(CATALOG_CSV, "w", newline="", encoding="utf-8") as f:
+        f.write("id;name;artist;year;language;genre;duration;mood;key;tempo;enabled\n")
+    print(f">> creado {CATALOG_CSV}")
+else:
+    print(f">> encontrado {CATALOG_CSV}")
 
     # ===== RUTAS ESTÁTICAS BÁSICAS =====
     @app.route("/")
@@ -167,6 +167,7 @@ def create_app():
                     data.get("mood", ""),
                     data.get("key", ""),
                     data.get("tempo", "")
+                    "Y",  # ✅ enabled por defecto
                 ])
 
             lyrics_path.parent.mkdir(parents=True, exist_ok=True)
