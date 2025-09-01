@@ -150,53 +150,193 @@ def create_app():
     def favicon():
         return "", 204
 
-    @app.route("/add-song", methods=["POST"])
+        @app.route("/add-song", methods=["POST"])
     def add_song():
         try:
-            data = request.get_json()
+            data = request.get_json(force=True)
             song_id = (data.get("id") or "").strip()
             if not song_id:
                 return "ID de canción no especificado", 400
 
             catalog_csv = CATALOG_CSV
 
-            print(">> add_song recibido")
-            print(">> ID:", song_id)
+            # ¿Existe ya este ID?
+            existing = None
+            if catalog_csv.exists():
+                with open(catalog_csv, newline="", encoding="utf-8") as f:
+                    reader = csv.DictReader(f, delimiter=";")
+                    for row in reader:
+                        if (row.get("id") or "").strip() == song_id:
+                            existing = row
+                            break
 
-            # Evita duplicados por id en el CSV
-            with open(catalog_csv, newline="", encoding="utf-8") as f:
-                reader = csv.DictReader(f, delimiter=";")
-                if any((row.get("id") or "").strip() == song_id for row in reader):
-                    return f"Ya existe una canción con ese ID: {song_id}", 409
+            # Si existe y NO viene 'overwrite', devolvemos conflicto con info (409)
+            if existing and not data.get("overwrite"):
+                return jsonify({
+                    "status": "conflict",
+                    "message": f"Ya existe el ID {song_id}",
+                    "id": song_id,
+                    "existing": {
+                        "id": existing.get("id", ""),
+                        "name": existing.get("name", ""),
+                        "artist": existing.get("artist", "")
+                    }
+                }), 409
 
-            # Añade fila al CSV (enabled=Y)
-            with open(catalog_csv, "a", newline="", encoding="utf-8") as csvfile:
-                writer = csv.writer(csvfile, delimiter=";")
-                writer.writerow([
-                    data.get("id", ""),
-                    data.get("name", ""),
-                    data.get("artist", ""),
-                    data.get("year", ""),
-                    data.get("language", ""),
-                    data.get("genre", ""),
-                    data.get("duration", ""),
-                    data.get("mood", ""),
-                    data.get("key", ""),
-                    data.get("tempo", ""),
-                    "Y",
-                ])
+            fieldnames = ["id","name","artist","year","language","genre","duration","mood","key","tempo","enabled"]
 
-            # Guarda ficheros en el DISK (persistentes)
-            lyrics_path = LYRICS_DIR / f"{song_id}.txt"
-            tabs_path   = TABS_DIR   / f"TAB{song_id}.txt"
-            with open(lyrics_path, "w", encoding="utf-8") as f:
-                f.write((data.get("lyrics") or "").strip())
-            with open(tabs_path, "w", encoding="utf-8") as f:
-                f.write((data.get("tab") or "").strip())
+            if existing and data.get("overwrite"):
+                # Sobrescribir: reescribir el CSV sustituyendo la fila del ID
+                with open(catalog_csv, newline="", encoding="utf-8") as f:
+                    rows = list(csv.DictReader(f, delimiter=";"))
 
-            return "✅ Canción añadida correctamente."
+                # Construimos la fila nueva (manteniendo enabled si no se manda)
+                newrow = {k: (data.get(k) if data.get(k) not in [None, ""] else "") for k in fieldnames}
+                newrow["id"] = song_id
+                if not newrow.get("enabled"):
+                    newrow["enabled"] = (existing.get("enabled") or "Y")
+
+                with open(catalog_csv, "w", newline="", encoding="utf-8") as f:
+                    w = csv.DictWriter(f, fieldnames=fieldnames, delimiter=";")
+                    w.writeheader()
+                    for row in rows:
+                        if (row.get("id") or "").strip() == song_id:
+                            w.writerow({k: newrow.get(k, "") for k in fieldnames})
+                        else:
+                            w.writerow({k: row.get(k, "") for k in fieldnames})
+
+                status_msg = "✅ Canción actualizada (sobrescrita)."
+            elif not existing:
+                # Añadir nueva fila
+                with open(catalog_csv, "a", newline="", encoding="utf-8") as csvfile:
+                    writer = csv.writer(csvfile, delimiter=";")
+                    writer.writerow([
+                        data.get("id", ""),
+                        data.get("name", ""),
+                        data.get("artist", ""),
+                        data.get("year", ""),
+                        data.get("language", ""),
+                        data.get("genre", ""),
+                        data.get("duration", ""),
+                        data.get("mood", ""),
+                        data.get("key", ""),
+                        data.get("tempo", ""),
+                        "Y",
+                    ])
+                status_msg = "✅ Canción añadida correctamente."
+            else:
+                # No debería llegar aquí (el caso existing sin overwrite ya retornó 409)
+                status_msg = "ℹ️ Nada que hacer."
+
+            # Guardar letra/tab SOLO si añadimos o si se sobrescribe
+            if not existing or data.get("overwrite"):
+                if "lyrics" in data:
+                    (LYRICS_DIR / f"{song_id}.txt").parent.mkdir(parents=True, exist_ok=True)
+                    with open(LYRICS_DIR / f"{song_id}.txt", "w", encoding="utf-8") as f:
+                        f.write((data.get("lyrics") or "").strip())
+                if "tab" in data:
+                    (TABS_DIR / f"TAB{song_id}.txt").parent.mkdir(parents=True, exist_ok=True)
+                    with open(TABS_DIR / f"TAB{song_id}.txt", "w", encoding="utf-8") as f:
+                        f.write((data.get("tab") or "").strip())
+
+            return status_msg, 200
+
         except Exception as e:
-            return f"❌ Error al añadir canción: {str(e)}", 500
+            return f"❌ Error al añadir/actualizar canción: {str(e)}", 500
+
+    @app.route("/add-song", methods=["POST"])
+    def add_song():
+        try:
+            data = request.get_json(force=True)
+            song_id = (data.get("id") or "").strip()
+            if not song_id:
+                return "ID de canción no especificado", 400
+
+            catalog_csv = CATALOG_CSV
+
+            # ¿Existe ya este ID?
+            existing = None
+            if catalog_csv.exists():
+                with open(catalog_csv, newline="", encoding="utf-8") as f:
+                    reader = csv.DictReader(f, delimiter=";")
+                    for row in reader:
+                        if (row.get("id") or "").strip() == song_id:
+                            existing = row
+                            break
+
+            # Si existe y NO viene 'overwrite', devolvemos conflicto con info (409)
+            if existing and not data.get("overwrite"):
+                return jsonify({
+                    "status": "conflict",
+                    "message": f"Ya existe el ID {song_id}",
+                    "id": song_id,
+                    "existing": {
+                        "id": existing.get("id", ""),
+                        "name": existing.get("name", ""),
+                        "artist": existing.get("artist", "")
+                    }
+                }), 409
+
+            fieldnames = ["id","name","artist","year","language","genre","duration","mood","key","tempo","enabled"]
+
+            if existing and data.get("overwrite"):
+                # Sobrescribir: reescribir el CSV sustituyendo la fila del ID
+                with open(catalog_csv, newline="", encoding="utf-8") as f:
+                    rows = list(csv.DictReader(f, delimiter=";"))
+
+                # Construimos la fila nueva (manteniendo enabled si no se manda)
+                newrow = {k: (data.get(k) if data.get(k) not in [None, ""] else "") for k in fieldnames}
+                newrow["id"] = song_id
+                if not newrow.get("enabled"):
+                    newrow["enabled"] = (existing.get("enabled") or "Y")
+
+                with open(catalog_csv, "w", newline="", encoding="utf-8") as f:
+                    w = csv.DictWriter(f, fieldnames=fieldnames, delimiter=";")
+                    w.writeheader()
+                    for row in rows:
+                        if (row.get("id") or "").strip() == song_id:
+                            w.writerow({k: newrow.get(k, "") for k in fieldnames})
+                        else:
+                            w.writerow({k: row.get(k, "") for k in fieldnames})
+
+                status_msg = "✅ Canción actualizada (sobrescrita)."
+            elif not existing:
+                # Añadir nueva fila
+                with open(catalog_csv, "a", newline="", encoding="utf-8") as csvfile:
+                    writer = csv.writer(csvfile, delimiter=";")
+                    writer.writerow([
+                        data.get("id", ""),
+                        data.get("name", ""),
+                        data.get("artist", ""),
+                        data.get("year", ""),
+                        data.get("language", ""),
+                        data.get("genre", ""),
+                        data.get("duration", ""),
+                        data.get("mood", ""),
+                        data.get("key", ""),
+                        data.get("tempo", ""),
+                        "Y",
+                    ])
+                status_msg = "✅ Canción añadida correctamente."
+            else:
+                # No debería llegar aquí (el caso existing sin overwrite ya retornó 409)
+                status_msg = "ℹ️ Nada que hacer."
+
+            # Guardar letra/tab SOLO si añadimos o si se sobrescribe
+            if not existing or data.get("overwrite"):
+                if "lyrics" in data:
+                    (LYRICS_DIR / f"{song_id}.txt").parent.mkdir(parents=True, exist_ok=True)
+                    with open(LYRICS_DIR / f"{song_id}.txt", "w", encoding="utf-8") as f:
+                        f.write((data.get("lyrics") or "").strip())
+                if "tab" in data:
+                    (TABS_DIR / f"TAB{song_id}.txt").parent.mkdir(parents=True, exist_ok=True)
+                    with open(TABS_DIR / f"TAB{song_id}.txt", "w", encoding="utf-8") as f:
+                        f.write((data.get("tab") or "").strip())
+
+            return status_msg, 200
+
+        except Exception as e:
+            return f"❌ Error al añadir/actualizar canción: {str(e)}", 500
 
     @app.route("/votes/now_playing", methods=["POST"])
     def set_now_playing():
