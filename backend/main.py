@@ -150,7 +150,7 @@ def create_app():
     def favicon():
         return "", 204
 
-        @app.route("/add-song", methods=["POST"])
+    @app.route("/add-song", methods=["POST"])
     def add_song():
         try:
             data = request.get_json(force=True)
@@ -190,7 +190,7 @@ def create_app():
                 with open(catalog_csv, newline="", encoding="utf-8") as f:
                     rows = list(csv.DictReader(f, delimiter=";"))
 
-                # Construimos la fila nueva (manteniendo enabled si no se manda)
+                # Fila nueva (si algún campo viene vacío, lo dejamos vacío)
                 newrow = {k: (data.get(k) if data.get(k) not in [None, ""] else "") for k in fieldnames}
                 newrow["id"] = song_id
                 if not newrow.get("enabled"):
@@ -206,6 +206,7 @@ def create_app():
                             w.writerow({k: row.get(k, "") for k in fieldnames})
 
                 status_msg = "✅ Canción actualizada (sobrescrita)."
+
             elif not existing:
                 # Añadir nueva fila
                 with open(catalog_csv, "a", newline="", encoding="utf-8") as csvfile:
@@ -224,8 +225,9 @@ def create_app():
                         "Y",
                     ])
                 status_msg = "✅ Canción añadida correctamente."
+
             else:
-                # No debería llegar aquí (el caso existing sin overwrite ya retornó 409)
+                # Caso teórico (existing sin overwrite ya devolvió 409)
                 status_msg = "ℹ️ Nada que hacer."
 
             # Guardar letra/tab SOLO si añadimos o si se sobrescribe
