@@ -82,6 +82,32 @@
       <input type="file" id="logo-file" name="logo" accept=".png,.jpg,.jpeg" required>
       <button type="button" onclick="uploadLogo()">Actualizar logo</button>
     </div>
+    
+    <h2>Corrección rápida (un campo)</h2>
+    <div class="side-by-side">
+      <div>
+        <label for="fix-id">ID</label>
+        <input id="fix-id" type="text" placeholder="id exacto...">
+      </div>
+      <div>
+        <label for="fix-field">Campo</label>
+        <select id="fix-field">
+          <option value="artist">artist</option>
+          <option value="name">name</option>
+          <option value="year">year</option>
+          <option value="language">language</option>
+          <option value="genre">genre</option>
+          <option value="duration">duration</option>
+          <option value="mood">mood</option>
+          <option value="key">key</option>
+          <option value="tempo">tempo</option>
+          <option value="enabled">enabled</option>
+        </select>
+      </div>
+    </div>
+    <label for="fix-value">Nuevo valor</label>
+    <input id="fix-value" type="text" placeholder="nuevo valor... (Y/N para enabled)">
+    <button type="button" onclick="updateOneField()">Actualizar campo</button>
 
     <button type="button" onclick="goBack()">a Pantalla de Intérprete</button>
 
@@ -427,6 +453,51 @@
         console.error("Error cargando campos híbridos:", e);
       }
     }
+    
+    <!-- PÉGALO JUSTO ANTES DE // Carga inicial -->
+    // === Corrección rápida (JS) ===
+    async function updateOneField() {
+      const id    = document.getElementById("fix-id").value.trim();
+      const field = document.getElementById("fix-field").value;
+      const value = document.getElementById("fix-value").value;
+
+      if (!id) {
+        alert("Escribe el ID.");
+        return;
+      }
+
+      try {
+        const res = await fetch("/update-song", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, field, value })
+        });
+        const msg = await res.text();
+        alert(msg);
+        if (res.ok) {
+          await refreshCatalog();
+          await loadSongList();
+        }
+      } catch (e) {
+        console.error(e);
+        alert("❌ Error actualizando");
+      }
+    }
+
+    // Carga inicial
+    window.addEventListener("DOMContentLoaded", () => {
+      loadMissingArtists();
+      loadHybridFields();
+      loadSongList();
+    });
+  </script>
+
+  <datalist id="artist-list"></datalist>
+  <datalist id="year-list"></datalist>
+  <datalist id="language-list"></datalist>
+  <datalist id="genre-list"></datalist>
+  <datalist id="mood-list"></datalist>
+  <datalist id="key-list"></datalist>
 
     // Carga inicial
     window.addEventListener("DOMContentLoaded", () => {
