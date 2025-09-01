@@ -107,74 +107,77 @@
   </div>
 
   <script>
-  async function submitForm() {
-    const data = {
-      id: document.getElementById("id").value.trim(),
-      name: document.getElementById("name").value.trim(),
-      artist: document.getElementById("artist").value.trim(),
-      year: document.getElementById("year").value.trim(),
-      language: document.getElementById("language").value.trim(),
-      genre: document.getElementById("genre").value.trim(),
-      duration: document.getElementById("duration").value.trim(),
-      mood: document.getElementById("mood").value.trim(),
-      key: document.getElementById("key").value.trim(),
-      tempo: document.getElementById("tempo").value.trim(),
-      lyrics: document.getElementById("lyrics").value,
-      tab: document.getElementById("tab").value,
-    };
+    // ===== Añadir canción (con conflicto/overwrite) =====
+    async function submitForm() {
+      const data = {
+        id: document.getElementById("id").value.trim(),
+        name: document.getElementById("name").value.trim(),
+        artist: document.getElementById("artist").value.trim(),
+        year: document.getElementById("year").value.trim(),
+        language: document.getElementById("language").value.trim(),
+        genre: document.getElementById("genre").value.trim(),
+        duration: document.getElementById("duration").value.trim(),
+        mood: document.getElementById("mood").value.trim(),
+        key: document.getElementById("key").value.trim(),
+        tempo: document.getElementById("tempo").value.trim(),
+        lyrics: document.getElementById("lyrics").value,
+        tab: document.getElementById("tab").value,
+      };
 
-    if (!data.id) {
-      alert("El campo ID es obligatorio.");
-      return;
-    }
+      if (!data.id) {
+        alert("El campo ID es obligatorio.");
+        return;
+      }
 
-    try {
-      // 1º intento (sin overwrite)
-      let res = await fetch("/add-song", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      try {
+        // 1º intento (sin overwrite)
+        let res = await fetch("/add-song", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
 
-      if (res.status === 409) {
-        // Conflicto: ya existe ese ID. Pedimos confirmación.
-        const info = await res.json();
-        const ex = info.existing || {};
-        const ok = confirm(
-          `⚠️ Ya existe el ID "${info.id}":\n` +
-          `Título: ${ex.name || "(sin título)"}\n` +
-          `Artista: ${ex.artist || "(sin artista)"}\n\n` +
-          `¿Quieres SOBRESCRIBIR esta canción (datos, letra y tablatura)?`
-        );
-        if (!ok) {
-          alert("Operación cancelada. No se hicieron cambios.");
+        if (res.status === 409) {
+          // Conflicto: ya existe ese ID. Pedimos confirmación.
+          const info = await res.json();
+          const ex = info.existing || {};
+          const ok = confirm(
+            `⚠️ Ya existe el ID "${info.id}":\n` +
+            `Título: ${ex.name || "(sin título)"}\n` +
+            `Artista: ${ex.artist || "(sin artista)"}\n\n` +
+            `¿Quieres SOBRESCRIBIR esta canción (datos, letra y tablatura)?`
+          );
+          if (!ok) {
+            alert("Operación cancelada. No se hicieron cambios.");
+            return;
+          }
+
+          // 2º intento con overwrite=true
+          const data2 = { ...data, overwrite: true };
+          res = await fetch("/add-song", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data2),
+          });
+        }
+
+        const msg = await res.text();
+        if (!res.ok) {
+          alert("❌ " + msg);
           return;
         }
 
-        // 2º intento con overwrite=true
-        const data2 = { ...data, overwrite: true };
-        res = await fetch("/add-song", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data2),
-        });
-      }
-
-      const msg = await res.text();
-      alert(msg);
-
-      if (res.ok) {
+        alert(msg);
         await refreshCatalog();   // regenerar catalog.json
+
         // Limpieza rápida
         ["id","name","artist","year","language","genre","duration","mood","key","tempo","lyrics","tab"]
           .forEach(id => document.getElementById(id).value = "");
+      } catch (e) {
+        console.error(e);
+        alert("❌ Error al añadir/actualizar canción");
       }
-    } catch (e) {
-      console.error(e);
-      alert("❌ Error al añadir/actualizar canción");
     }
-  }
-</script>
 
     // ===== Catálogo (upload/refresh/download/edit) =====
     async function uploadCatalog() {
@@ -201,9 +204,9 @@
         const res = await fetch("/refresh-catalog", { method: "POST" });
         const text = await res.text();
         alert(text);
-        // bust cache y recargar UI dependiente
+        // Bust de caché y refresco UI
         await fetch("/catalog/catalog.json?t=" + Date.now());
-        await loadSongList(); // refresca la lista por si cambió
+        await loadSongList();
       } catch (e) {
         console.error(e);
         alert("❌ Error al actualizar catálogo");
@@ -297,7 +300,7 @@
     }
 
     async function deleteSelectedSongs() {
-      const boxes = document.querySelectorAll("#song-list .delete-checkbox:checked"); // ✅ solo los de borrar
+      const boxes = document.querySelectorAll("#song-list .delete-checkbox:checked");
       if (!boxes.length) {
         alert("No has seleccionado ninguna canción para borrar.");
         return;
@@ -391,11 +394,11 @@
         const res = await fetch(`/upload-artist-photo/${encodeURIComponent(artist)}`, { method: "POST", body: fd });
         const msg = await res.text();
         if (res.ok) {
-          button.style.background = "#d4edda"; // verde éxito
+          button.style.background = "#d4edda";
           button.textContent = `✔ ${artist}`;
           setTimeout(() => button.remove(), 1000);
         } else {
-          button.style.background = "#f8d7da"; // rojo error
+          button.style.background = "#f8d7da";
           alert(`Error: ${msg}`);
         }
       } catch (e) {
