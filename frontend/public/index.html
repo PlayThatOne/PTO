@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
     <meta charset="utf-8"/>
@@ -40,7 +39,6 @@
         #lyrics-container.collapsed {
             display: none;
         }
-
 
         #ranking-box {
             border: 1px solid #ccc;
@@ -114,8 +112,6 @@
             }
         }
 
-        
-
         .group h3 {
             margin: 0 0 4px;
             font-size: 1.15em;
@@ -143,15 +139,8 @@
             background-color: blue; <!--peter-->
         }
 
-
-        .selected {
-            background-color: orange;
-        }
-
-        .voted {
-            background-color: lightgreen;
-        }
-
+        .selected { background-color: orange; }
+        .voted { background-color: lightgreen; }
         .played {
             opacity: 0.4;
             pointer-events: none;
@@ -181,10 +170,7 @@
             color: white;
         }
 
-        .banner img {
-            max-height: 50px;
-        }
-
+        .banner img { max-height: 50px; }
         .banner-title {
             font-size: 1.5em;
             text-align: left;
@@ -195,15 +181,12 @@
             padding: 20px;
             background-color: #fff;
             border-bottom: 1px solid #ccc;
-            white-space: pre-wrap;
+            white-space: pre-line; /* ← respetar saltos de línea de la letra */
             font-size: 1.1em;
             min-height: 120px;
         }
 
-        #ranking {
-            margin-top: 20px;
-        }
-
+        #ranking { margin-top: 20px; }
         #ranking li {
             cursor: pointer;
             padding: 5px;
@@ -212,7 +195,6 @@
             margin: 3px 0;
             list-style: none;
         }
-
         #ranking li.played {
             opacity: 0.4;
             text-decoration: line-through;
@@ -225,7 +207,6 @@
             align-items: center; /* centra verticalmente tanto texto como imagen */
             font-weight: bold;
         }
-
         .group h3 img {
             max-height: 100%; /* ocupa toda la altura disponible */
             height: auto; /* mantiene proporción */
@@ -233,57 +214,6 @@
             margin-left: auto;
         }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
         .group {
             display: flex;
             justify-content: space-between;
@@ -294,11 +224,7 @@
             padding: 5px;
         }
 
-        .group-left {
-            flex: 1;
-            padding-right: 10px;
-        }
-
+        .group-left { flex: 1; padding-right: 10px; }
         .group-right {
             flex: 0 0 25%;
             display: flex;
@@ -306,7 +232,6 @@
             align-items: flex-start; /* siempre arriba */
             overflow: hidden;
         }
-
         .group-right img {
             max-height: calc(2.5em + 80px); /* altura epígrafe + 1 canción */
             max-width: 100%;
@@ -315,144 +240,65 @@
             object-fit: contain;
         }
 
-    
-#lyrics-wrapper,
-#lyrics-container,
-#ranking-box {
-    background: none !important;
-    border: none !important;
-}
+        #lyrics-wrapper,
+        #lyrics-container,
+        #ranking-box {
+            background: none !important;
+            border: none !important;
+        }
 
-.song {
-    background: none !important;
-    border: 1px solid #ccc;
-}
+        .song { background: none !important; border: 1px solid #ccc; }
+        .song { background-color: #fff !important; border: 1px solid #ccc; } /* visible */
 
+        .song.selected { background-color: orange !important; }
+        .song.voted { background-color: lightgreen !important; }
+        .song.played { background-color: pink !important; }
 
-/* Mantener botones visibles */
-.song {
-    background-color: #fff !important; /* blanco por defecto */
-    border: 1px solid #ccc;
-}
+        #ranking-box { background: none !important; border: none !important; }
+        #ranking-top3 li,
+        #ranking-rest li {
+            background-color: #fff !important;
+            border: 1px solid #ccc;
+        }
 
-/* Estados de botones (colores de voto) */
-.song.selected {
-    background-color: orange !important;
-}
-.song.voted {
-    background-color: lightgreen !important;
-}
-.song.played {
-    background-color: pink !important;
-}
+        .banner-title {
+            text-align: center !important;
+            font-size: 2em !important;
+            font-family: 'Lobster', cursive, 'Raleway', sans-serif !important;
+            letter-spacing: 1px;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Lobster&display=swap');
 
-/* Fondo transparente en Live Ranking */
-#ranking-box {
-    background: none !important;
-    border: none !important;
-}
+        /* === Uniformidad VOT === */
+        .group-left { min-width: 0; }
+        .song {
+            width: 100%;
+            max-width: 100%;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            box-sizing: border-box;
+        }
+        .group-right img { max-height: calc(2.5em + 30px) !important; }
 
-/* Botones dentro del ranking visibles */
-#ranking-top3 li,
-#ranking-rest li {
-    background-color: #fff !important;
-    border: 1px solid #ccc;
-}
-
-
-/* Quitar gris de Live Ranking */
-#ranking-box {
-    background: none !important;
-    border: none !important;
-}
-
-/* Botones dentro del ranking visibles y blancos */
-#ranking-top3 li,
-#ranking-rest li {
-    background-color: #fff !important;
-    border: 1px solid #ccc;
-}
-
-/* Verde uniforme para votos */
-.song.voted,
-#ranking-top3 li.voted,
-#ranking-rest li.voted {
-    background-color: #32cd32 !important; /* verde brillante tipo RAN */
-    color: #000 !important;
-}
-
-
-/* Forzar transparencia completa del contenedor Live Ranking */
-#ranking-box,
-#ranking-top3,
-#ranking-rest {
-    background: none !important;
-    border: none !important;
-}
-
-/* Asegurar botones blancos dentro de Live Ranking */
-#ranking-top3 li,
-#ranking-rest li {
-    background-color: #fff !important;
-    border: 1px solid #ccc !important;
-}
-
-/* Verde uniforme para votos */
-.song.voted,
-#ranking-top3 li.voted,
-#ranking-rest li.voted {
-    background-color: #32cd32 !important;
-    color: #000 !important;
-}
-
-
-/* Centrar el título en la cabecera y hacerlo más vistoso */
-.banner-title {
-    text-align: center !important;
-    font-size: 2em !important;
-    font-family: 'Lobster', cursive, 'Raleway', sans-serif !important;
-    letter-spacing: 1px;
-}
-
-/* Importar la fuente Lobster para un look más atractivo */
-@import url('https://fonts.googleapis.com/css2?family=Lobster&display=swap');
-
-
-/* === Uniformidad VOT: mismo ancho y altura fija (30px) === */
-.group-left { min-width: 0; } /* permite que el contenido no empuje al .group-right */
-.song {
-    width: 100%;
-    max-width: 100%;
-    height: 30px;              /* mitad de la altura previa de 60px */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    box-sizing: border-box;
-}
-
-/* Alinear imagen con nuevo alto del primer botón + epígrafe */
-.group-right img {
-    max-height: calc(2.5em + 30px) !important;
-}
-
-
-/* Evitar que un grupo (epígrafe + canciones) se divida entre columnas */
-.group {
-    break-inside: avoid;
-    -webkit-column-break-inside: avoid;
-    -moz-column-break-inside: avoid;
-}
-
-</style>
+        /* Evitar que un grupo se divida entre columnas */
+        .group {
+            break-inside: avoid;
+            -webkit-column-break-inside: avoid;
+            -moz-column-break-inside: avoid;
+        }
+    </style>
 </head>
 <body>
 <div class="banner">
     <img alt="Logo" id="logo-left" src="/songs/images/logo.png"/>
     <div class="banner-title">Play That One!</div>
-    <img alt="Event Logo" id="logo-right" src="/songs/images/event-logo.png"/>
+    <!-- ← renombrado para el script de actualización -->
+    <img alt="Event Logo" id="eventLogo" src="/songs/images/event-logo.png"/>
 </div>
 
 <div id="lyrics-wrapper">
@@ -466,12 +312,6 @@
 
     <iframe id="ranking-frame" src="./ran.html" style="width:100%; border:none;"></iframe>
 
-    <!--    <object type="text/html" data="ran.html"></object>-->
-
-
-<!--    <h2>Live Ranking</h2>-->
-<!--    <ul id="ranking"></ul>-->
-
     <h1>Vote a Song</h1>
     <label for="ord-select" style="font-weight: 600; margin-left: 20px;">Order by:</label>
     <select id="ord-select" style="margin-bottom: 10px; padding: 6px; font-size: 1em;">
@@ -483,18 +323,6 @@
 
     <div id="songs-container"></div>
     <script>
-
-        // async function loadComponent(id, file) {
-        //     const response = await fetch(file);
-        //     const text = await response.text();
-        //     document.getElementById(id).innerHTML = text;
-        // }
-        //
-        // loadComponent("ranking", "ran.html");
-
-//        const iframe = document.getElementById('ranking-frame');
-        /* eliminado ajuste fijo */
-
         const socket = io();
 
         let deviceId = localStorage.getItem('deviceId');
@@ -544,69 +372,61 @@
             }
         }
 
-        
         function vote(id) {
             socket.emit('vote', {deviceId, songId: id});
             selectedId = null;
 
-            // 🔹 Eliminar el voto anterior de este dispositivo
+            // eliminar voto anterior del dispositivo
             for (const songId in currentVotes) {
                 if (Array.isArray(currentVotes[songId])) {
                     currentVotes[songId] = currentVotes[songId].filter(d => d !== deviceId);
                 }
             }
 
-            // 🔹 Añadir el nuevo voto
+            // añadir nuevo voto
             if (!currentVotes[id]) currentVotes[id] = [];
             currentVotes[id].push(deviceId);
 
             markAll();
         }
 
-        let lastVotedId = null; // 🔹 guarda el último voto global
+        let lastVotedId = null;
 
         function handleClick(id) {
             if (songCatalog[id]?.state === 'played') return;
 
             if (selectedId === id) {
-                // Voto confirmado
                 if (lastVotedId && lastVotedId !== id) {
-                    updateSongState(lastVotedId, 'played'); // 🔹 la anterior se pone gris
+                    updateSongState(lastVotedId, 'played');
                 }
-
                 vote(id);
-                //selectedId = null;
-                updateSongState(id, 'voted');   // verde
-                lastVotedId = id;               // guardamos la actual como último voto
+                updateSongState(id, 'voted');
+                lastVotedId = id;
                 selectedId = null;
                 markAll();
             } else {
                 selectedId = id;
-                updateSongState(id, 'selected'); // naranja
+                updateSongState(id, 'selected');
                 markAll();
             }
 
-            // 🔹 Forzar repintado del ranking en el iframe
             const ranFrame = document.getElementById("ranking-frame");
             if (ranFrame && ranFrame.contentWindow && typeof ranFrame.contentWindow.markAll === "function") {
-                console.log("[INDEX] Forzando markAll en RAN");
                 ranFrame.contentWindow.markAll();
             }
         }
-
 
         async function init() {
             const res = await fetch(CATALOG_URL);
             const catalog = await res.json();
             const container = document.getElementById('songs-container');
 
-            // Agrupar por valor del selector
             ORDER_KEY = document.getElementById('ord-select').value;
             container.innerHTML = '';
             const grouped = {};
             catalog.sort((a, b) => a.title.localeCompare(b.title));
 
-catalog.forEach(song => {
+            catalog.forEach(song => {
                 let group = song[ORDER_KEY];
                 if (!group || group.trim() === '') group = '[Unknown]';
                 if (!grouped[group]) grouped[group] = [];
@@ -615,7 +435,7 @@ catalog.forEach(song => {
             });
 
             const keys = Object.keys(grouped).sort();
-for (const artist of keys) {
+            for (const artist of keys) {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'group';
                 const groupHeader = document.createElement('h3');
@@ -632,7 +452,6 @@ for (const artist of keys) {
                 } else {
                     groupHeader.textContent = artist;
                 }
-
 
                 const safe = encodeURIComponent(artist);
                 const exts = [".jpg", ".jpeg", ".png"];
@@ -651,7 +470,7 @@ for (const artist of keys) {
                             imgContainer.className = 'group-right';
                             imgContainer.appendChild(img);
                             wrapper.appendChild(imgContainer);
-                            adjustImageHeights(); // 🔹 recalcular justo cuando se inserta
+                            adjustImageHeights();
                         }
                     };
 
@@ -659,6 +478,7 @@ for (const artist of keys) {
                         img.remove();
                     };
                 });
+
                 const leftContainer = document.createElement('div');
                 leftContainer.className = 'group-left';
                 leftContainer.appendChild(groupHeader);
@@ -668,10 +488,8 @@ for (const artist of keys) {
                     const div = document.createElement('div');
                     div.id = song.id;
                     div.className = 'song';
-
                     const label = song.title || '[No title]';
                     div.textContent = label;
-
                     div.onclick = () => handleClick(song.id);
                     leftContainer.appendChild(div);
                 });
@@ -697,62 +515,20 @@ for (const artist of keys) {
                 loadLyrics(nowPlayingId);
             }
 
-//            const list = document.getElementById('ranking');
-//            list.innerHTML = '';
-
-//            const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-//            for (const [songId, count] of sorted) {
-//                const li = document.createElement('li');
-//                li.textContent = `${songId}: ${count}`;
-//                if (['played', 'now_playing'].includes(songCatalog[songId]?.state)) li.classList.add('played');
-//                list.appendChild(li);
-//            }
-
             markAll();
             adjustImageHeights();
         });
 
         document.getElementById('ord-select').addEventListener('change', () => {
-
-            // LET toggle
+            // LET toggle (duplicado arriba, se mantiene por compatibilidad)
             document.getElementById("toggle-lyrics").addEventListener("click", () => {
                 const container = document.getElementById("lyrics-container");
                 const btn = document.getElementById("toggle-lyrics");
                 container.classList.toggle("collapsed");
                 btn.textContent = container.classList.contains("collapsed") ? "▼" : "▲";
             });
-
-            // RAN: render top 3 + scroll resto
-            function updateRankingDisplay(rankedIds) {
-                const top3 = rankedIds.slice(0, 3);
-                const rest = rankedIds.slice(3);
-
-                const top3Container = document.getElementById("ranking-top3");
-                const restContainer = document.getElementById("ranking-rest");
-                top3Container.innerHTML = "";
-                restContainer.innerHTML = "";
-
-                top3.forEach(id => {
-                    const div = document.createElement("li");
-                    div.textContent = songCatalog[id]?.title || id;
-                    div.onclick = () => handleClick(id);
-                    div.className = "song";
-                    top3Container.appendChild(div);
-                });
-
-                rest.forEach(id => {
-                    const div = document.createElement("li");
-                    div.textContent = songCatalog[id]?.title || id;
-                    div.onclick = () => handleClick(id);
-                    div.className = "song";
-                    restContainer.appendChild(div);
-                });
-            }
-
-
             init();
         });
-
 
         // LET toggle
         document.getElementById("toggle-lyrics").addEventListener("click", () => {
@@ -762,38 +538,10 @@ for (const artist of keys) {
             btn.textContent = container.classList.contains("collapsed") ? "▼" : "▲";
         });
 
-        // RAN: render top 3 + scroll resto
-        function updateRankingDisplay(rankedIds) {
-            const top3 = rankedIds.slice(0, 3);
-            const rest = rankedIds.slice(3);
-
-            const top3Container = document.getElementById("ranking-top3");
-            const restContainer = document.getElementById("ranking-rest");
-            top3Container.innerHTML = "";
-            restContainer.innerHTML = "";
-
-            top3.forEach(id => {
-                const div = document.createElement("li");
-                div.textContent = songCatalog[id]?.title || id;
-                div.onclick = () => handleClick(id);
-                div.className = "song";
-                top3Container.appendChild(div);
-            });
-
-            rest.forEach(id => {
-                const div = document.createElement("li");
-                div.textContent = songCatalog[id]?.title || id;
-                div.onclick = () => handleClick(id);
-                div.className = "song";
-                restContainer.appendChild(div);
-            });
-        }
-
-
         init();
     </script>
 
-        <script>
+    <script>
         function adjustImageHeights() {
             document.querySelectorAll('.group').forEach(group => {
                 const header = group.querySelector('h3');
@@ -809,13 +557,11 @@ for (const artist of keys) {
 
         window.addEventListener('load', adjustImageHeights);
         window.addEventListener('resize', adjustImageHeights);
-        </script>
+    </script>
 
-
-        <script>
+    <script>
         let lastVotedId = null;
 
-        // Reemplazo de la función vote para actualizar lastVotedId
         function vote(id) {
             socket.emit('vote', {deviceId, songId: id});
             selectedId = null;
@@ -826,72 +572,64 @@ for (const artist of keys) {
                     currentVotes[songId] = currentVotes[songId].filter(d => d !== deviceId);
                 }
             }
-
             if (!currentVotes[id]) currentVotes[id] = [];
             currentVotes[id].push(deviceId);
-
             markAll();
         }
 
-        // Hook para refrescar la lista de RAN manteniendo el resaltado
         function refreshRanList(songs) {
             const ranContainer = document.querySelector('.ran-container');
+            if (!ranContainer) return;
             ranContainer.innerHTML = "";
-
             songs.forEach(song => {
                 const element = createSongElement(song);
                 ranContainer.appendChild(element);
             });
-
             if (lastVotedId) {
                 const votedElement = document.getElementById(lastVotedId);
                 if (votedElement) votedElement.classList.add("voted");
             }
         }
-        </script>
+    </script>
 
-
-        <script>
+    <script>
         function resizeRankingFrame() {
             const iframe = document.getElementById('ranking-frame');
             if (iframe && iframe.contentWindow && iframe.contentWindow.document.body) {
                 iframe.style.height = iframe.contentWindow.document.body.scrollHeight + "px";
             }
         }
-
         const iframe = document.getElementById('ranking-frame');
         iframe.addEventListener("load", resizeRankingFrame);
-        setInterval(resizeRankingFrame, 1000); // ajusta dinámicamente cada segundo
-        </script>
+        setInterval(resizeRankingFrame, 1000);
+    </script>
 
     <script src="/songStates.js"></script>
 
-
-<script>
-(function() {
-  function fitSongLabels() {
-    var nodes = document.querySelectorAll('.song');
-    nodes.forEach(function(el) {
-      el.style.fontSize = ''; // reset
-      var computed = window.getComputedStyle(el);
-      var size = parseFloat(computed.fontSize) || 19;
-      var min = 9;
-      // Reducir hasta que quepa en UNA sola línea dentro del ancho disponible
-      while (el.scrollWidth > el.clientWidth && size > min) {
-        size -= 1;
-        el.style.fontSize = size + 'px';
+    <script>
+    (function() {
+      function fitSongLabels() {
+        var nodes = document.querySelectorAll('.song');
+        nodes.forEach(function(el) {
+          el.style.fontSize = '';
+          var computed = window.getComputedStyle(el);
+          var size = parseFloat(computed.fontSize) || 19;
+          var min = 9;
+          while (el.scrollWidth > el.clientWidth && size > min) {
+            size -= 1;
+            el.style.fontSize = size + 'px';
+          }
+        });
       }
-    });
-  }
-  window.addEventListener('load', fitSongLabels);
-  window.addEventListener('resize', fitSongLabels);
-  var container = document.getElementById('songs-container');
-  if (container) {
-    new MutationObserver(fitSongLabels).observe(container, { childList: true, subtree: true });
-  }
-  window.fitSongLabels = fitSongLabels;
-})();
-</script>
+      window.addEventListener('load', fitSongLabels);
+      window.addEventListener('resize', fitSongLabels);
+      var container = document.getElementById('songs-container');
+      if (container) {
+        new MutationObserver(fitSongLabels).observe(container, { childList: true, subtree: true });
+      }
+      window.fitSongLabels = fitSongLabels;
+    })();
+    </script>
 
 <hr style="margin-top: 40px;">
 
@@ -919,6 +657,26 @@ for (const artist of keys) {
       alert("Número copiado al portapapeles.");
     });
   }
+</script>
+
+<!-- === LOGO auto-actualizable (fallback + cache-busting) === -->
+<script>
+(function () {
+  var el = document.getElementById('eventLogo') || document.getElementById('logo-right');
+  if (!el) return;
+  var ts = Date.now();
+  var exts = ['png','jpg','jpeg'];
+  var i = 0;
+  function tryNext() {
+    if (i >= exts.length) return;
+    var src = "/songs/images/event-logo." + exts[i++] + "?t=" + ts;
+    var test = new Image();
+    test.onload = function(){ el.src = src; };
+    test.onerror = tryNext;
+    test.src = src;
+  }
+  tryNext();
+})();
 </script>
 
 </body>
