@@ -51,8 +51,9 @@ def create_app():
     socketio.init_app(app, cors_allowed_origins="*")
     print(">> socketio registrado")
 
-    # --- Asegurar CSV de catálogo en el disk ---
-    CATALOG_CSV = Path(__file__).resolve().parent / "core" / "catalog_postgres.csv"
+    # --- Asegurar CSV de catálogo en el Disk ---
+    CORE_DIR = Path(__file__).resolve().parent / "core"  # backend/core (Disk)
+    CATALOG_CSV = CORE_DIR / "catalog_postgres.csv"
     if not CATALOG_CSV.exists():
         CATALOG_CSV.parent.mkdir(parents=True, exist_ok=True)
         with open(CATALOG_CSV, "w", newline="", encoding="utf-8") as f:
@@ -60,6 +61,17 @@ def create_app():
         print(f">> creado {CATALOG_CSV}")
     else:
         print(f">> encontrado {CATALOG_CSV}")
+
+    # --- Carpetas PERSISTENTES en el Disk para letras/tabs/imagenes ---
+    LYRICS_DIR     = CORE_DIR / "songs" / "lyrics"
+    TABS_DIR       = CORE_DIR / "songs" / "tabs"
+    IMAGES_DIR     = CORE_DIR / "images"
+    ARTIST_IMG_DIR = IMAGES_DIR / "artist"
+    for d in [LYRICS_DIR, TABS_DIR, IMAGES_DIR, ARTIST_IMG_DIR]:
+        d.mkdir(parents=True, exist_ok=True)
+    print(f">> LYRICS_DIR={LYRICS_DIR}")
+    print(f">> TABS_DIR={TABS_DIR}")
+    print(f">> IMAGES_DIR={IMAGES_DIR}")
 
     # ===== RUTAS ESTÁTICAS =====
     @app.route("/")
@@ -82,27 +94,38 @@ def create_app():
     def ran():
         return send_from_directory(str(PUBLIC_DIR), "ran.html")
 
-    # ===== RUTAS SONGS (fuera de static) =====
-    @app.route("/songs/tabs/<filename>")
-    def serve_tab(filename):
-        tabs_dir = Path(__file__).resolve().parents[1] / "songs" / "tabs"
-        return send_from_directory(str(tabs_dir), filename)
-
+    # ===== RUTAS SONGS (primero Disk, luego repo como fallback) =====
     @app.route("/songs/lyrics/<filename>")
     def serve_lyrics(filename):
-        lyrics_dir = Path(__file__).resolve().parents[1] / "songs" / "lyrics"
-        return send_from_directory(str(lyrics_dir), filename)
+        p = LYRICS_DIR / filename
+        if p.exists():
+            return send_from_directory(str(LYRICS_DIR), filename)
+        # fallback a repo
+        repo_dir = PROJECT_ROOT / "songs" / "lyrics"
+        return send_from_directory(str(repo_dir), filename)
+
+    @app.route("/songs/tabs/<filename>")
+    def serve_tab(filename):
+        p = TABS_DIR / filename
+        if p.exists():
+            return send_from_directory(str(TABS_DIR), filename)
+        # fallback a repo
+        repo_dir = PROJECT_ROOT / "songs" / "tabs"
+        return send_from_directory(str(repo_dir), filename)
 
     @app.route("/songs/images/<path:filename>")
     def serve_images(filename):
-        images_dir = Path(__file__).resolve().parents[1] / "songs" / "images"
-        return send_from_directory(str(images_dir), filename)
+        p = IMAGES_DIR / filename
+        if p.exists():
+            return send_from_directory(str(IMAGES_DIR), filename)
+        # fallback a repo
+        repo_dir = PROJECT_ROOT / "songs" / "images"
+        return send_from_directory(str(repo_dir), filename)
 
     # ===== API =====
     @app.route("/core/votes.json")
     def votes():
-        core_dir = Path(__file__).resolve().parent / "core"
-        return send_from_directory(str(core_dir), "votes.json")
+        return send_from_directory(str(CORE_DIR), "votes.json")
 
     @app.route("/votes/counts.json")
     def vote_counts():
@@ -131,26 +154,22 @@ def create_app():
     def add_song():
         try:
             data = request.get_json()
-            song_id = data.get("id", "").strip()
+            song_id = (data.get("id") or "").strip()
             if not song_id:
                 return "ID de canción no especificado", 400
 
-            base_dir = Path(__file__).resolve().parents[1]
-            lyrics_path = base_dir / "songs" / "lyrics" / f"{song_id}.txt"
-            tabs_path = base_dir / "songs" / "tabs" / f"TAB{song_id}.txt"
-            catalog_csv = Path(__file__).resolve().parent / "core" / "catalog_postgres.csv"
+            catalog_csv = CATALOG_CSV
 
             print(">> add_song recibido")
             print(">> ID:", song_id)
-            print(">> lyrics:", lyrics_path)
-            print(">> tabs:", tabs_path)
-            print(">> CSV:", catalog_csv)
 
-            if lyrics_path.exists():
-                return "Ya existe una canción con ese ID.", 400
-            if not catalog_csv.exists():
-                return f"Archivo CSV no encontrado en: {catalog_csv}", 500
+            # Evita duplicados por id en el CSV
+            with open(catalog_csv, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f, delimiter=";")
+                if any((row.get("id") or "").strip() == song_id for row in reader):
+                    return f"Ya existe una canción con ese ID: {song_id}", 409
 
+            # Añade fila al CSV (enabled=Y)
             with open(catalog_csv, "a", newline="", encoding="utf-8") as csvfile:
                 writer = csv.writer(csvfile, delimiter=";")
                 writer.writerow([
@@ -163,17 +182,17 @@ def create_app():
                     data.get("duration", ""),
                     data.get("mood", ""),
                     data.get("key", ""),
-                    data.get("tempo", ""),  # coma correcta
-                    "Y",                    # enabled por defecto
+                    data.get("tempo", ""),
+                    "Y",
                 ])
 
-            lyrics_path.parent.mkdir(parents=True, exist_ok=True)
-            tabs_path.parent.mkdir(parents=True, exist_ok=True)
-
+            # Guarda ficheros en el DISK (persistentes)
+            lyrics_path = LYRICS_DIR / f"{song_id}.txt"
+            tabs_path   = TABS_DIR   / f"TAB{song_id}.txt"
             with open(lyrics_path, "w", encoding="utf-8") as f:
-                f.write(data.get("lyrics", "").strip())
+                f.write((data.get("lyrics") or "").strip())
             with open(tabs_path, "w", encoding="utf-8") as f:
-                f.write(data.get("tab", "").strip())
+                f.write((data.get("tab") or "").strip())
 
             return "✅ Canción añadida correctamente."
         except Exception as e:
@@ -224,7 +243,6 @@ def create_app():
         states = load_states()
 
         print(">> update:", {"counts": counts, "byDevice": by_device, "states": states})
-
         socketio.emit("update", {"counts": counts, "byDevice": by_device, "states": states})
 
     @socketio.on("update_request")
@@ -250,20 +268,21 @@ def create_app():
     @app.route("/missing-artist-photos")
     def missing_artist_photos():
         try:
-            base_dir = Path(__file__).resolve().parents[1]
-            catalog_path = base_dir / "frontend" / "public" / "catalog" / "catalog.json"
-            images_dir = base_dir / "songs" / "images" / "artist"
+            catalog_path = PUBLIC_DIR / "catalog" / "catalog.json"
 
             with open(catalog_path, "r", encoding="utf-8") as f:
                 catalog = json.load(f)
 
             missing = []
             for song in catalog:
-                artist = song.get("artist", "").strip()
+                artist = (song.get("artist") or "").strip()
                 if not artist:
                     continue
-                found = any((images_dir / f"{artist}{ext}").exists() for ext in [".jpg", ".jpeg", ".png"])
-                if not found and artist not in missing:
+                # Busca primero en Disk, luego en repo
+                has_image = any((ARTIST_IMG_DIR / f"{artist}{ext}").exists() for ext in [".jpg", ".jpeg", ".png"]) \
+                            or any((PROJECT_ROOT / "songs" / "images" / "artist" / f"{artist}{ext}").exists()
+                                   for ext in [".jpg", ".jpeg", ".png"])
+                if not has_image and artist not in missing:
                     missing.append(artist)
 
             return jsonify(missing)
@@ -273,8 +292,7 @@ def create_app():
     @app.route("/edit-catalog")
     def edit_catalog():
         from flask import send_file
-        base_dir = Path(__file__).resolve().parents[1]
-        catalog_csv = base_dir / "backend" / "core" / "catalog_postgres.csv"
+        catalog_csv = CORE_DIR / "catalog_postgres.csv"
         return send_file(str(catalog_csv), as_attachment=False)
 
     @app.route("/upload-catalog", methods=["POST"])
@@ -283,9 +301,8 @@ def create_app():
             file = request.files["catalog"]
             if not file:
                 return "No se recibió ningún archivo", 400
-
-            base_dir = Path(__file__).resolve().parents[1]
-            save_path = base_dir / "backend" / "core" / "catalog_postgres.csv"
+            # (Versión simple: sobrescribe. Si quieres fusión, te la paso cuando me digas)
+            save_path = CORE_DIR / "catalog_postgres.csv"
             file.save(str(save_path))
             return "✅ Catálogo actualizado correctamente."
         except Exception as e:
@@ -294,15 +311,13 @@ def create_app():
     @app.route("/download-catalog")
     def download_catalog():
         from flask import send_file
-        base_dir = Path(__file__).resolve().parents[1]
-        catalog_csv = base_dir / "backend" / "core" / "catalog_postgres.csv"
+        catalog_csv = CORE_DIR / "catalog_postgres.csv"
         return send_file(str(catalog_csv), as_attachment=True)
 
     @app.route("/list-songs")
     def list_songs():
         try:
-            base_dir = Path(__file__).resolve().parent
-            catalog_csv = base_dir / "core" / "catalog_postgres.csv"
+            catalog_csv = CORE_DIR / "catalog_postgres.csv"
             songs = []
             with open(catalog_csv, newline="", encoding="utf-8") as f:
                 reader = csv.DictReader(f, delimiter=";")
@@ -321,8 +336,7 @@ def create_app():
             if not ids:
                 return "No se recibieron canciones a borrar.", 400
 
-            base_dir = Path(__file__).resolve().parent
-            catalog_csv = base_dir / "core" / "catalog_postgres.csv"
+            catalog_csv = CORE_DIR / "catalog_postgres.csv"
             temp_file = Path(str(catalog_csv) + ".tmp")
 
             deleted = []
@@ -334,12 +348,18 @@ def create_app():
                 for row in reader:
                     if row["id"] in ids:
                         deleted.append(row["id"])
-                        base_dir2 = Path(__file__).resolve().parents[1]
-                        lyrics_path = base_dir2 / "songs" / "lyrics" / f"{row['id']}.txt"
-                        tabs_path = base_dir2 / "songs" / "tabs" / f"TAB{row['id']}.txt"
-                        for path in [lyrics_path, tabs_path]:
-                            if path.exists():
-                                path.unlink()
+                        # borra archivos asociados tanto en Disk como en repo
+                        for path in [
+                            LYRICS_DIR / f"{row['id']}.txt",
+                            TABS_DIR   / f"TAB{row['id']}.txt",
+                            PROJECT_ROOT / "songs" / "lyrics" / f"{row['id']}.txt",
+                            PROJECT_ROOT / "songs" / "tabs" / f"TAB{row['id']}.txt",
+                        ]:
+                            try:
+                                if path.exists():
+                                    path.unlink()
+                            except Exception:
+                                pass
                         continue
                     writer.writerow(row)
 
@@ -351,8 +371,7 @@ def create_app():
     @app.route("/get-song-status")
     def get_song_status():
         try:
-            base_dir = Path(__file__).resolve().parent
-            catalog_csv = base_dir / "core" / "catalog_postgres.csv"
+            catalog_csv = CORE_DIR / "catalog_postgres.csv"
             songs = []
             with open(catalog_csv, newline="", encoding="utf-8") as f:
                 reader = csv.DictReader(f, delimiter=";")
@@ -375,8 +394,7 @@ def create_app():
             if not updates:
                 return "No se recibieron datos para actualizar.", 400
 
-            base_dir = Path(__file__).resolve().parent
-            catalog_csv = base_dir / "core" / "catalog_postgres.csv"
+            catalog_csv = CORE_DIR / "catalog_postgres.csv"
             temp_file = Path(str(catalog_csv) + ".tmp")
 
             with open(catalog_csv, newline="", encoding="utf-8") as infile, open(temp_file, "w", newline="", encoding="utf-8") as outfile:
@@ -398,12 +416,11 @@ def create_app():
     def catalog_fields():
         try:
             from collections import defaultdict
-            base_dir = Path(__file__).resolve().parent
-            csv_path = base_dir / "core" / "catalog_postgres.csv"
+            csv_path = CORE_DIR / "catalog_postgres.csv"
 
             fields = ["artist", "year", "language", "genre", "mood", "key"]
             values = defaultdict(set)
-            with open(csv_path, newline="", encoding="utf-8") as f:   # <- FIX: newline=""
+            with open(csv_path, newline="", encoding="utf-8") as f:
                 reader = csv.DictReader(f, delimiter=";")
                 for row in reader:
                     for field in fields:
@@ -414,6 +431,21 @@ def create_app():
             return jsonify(sorted_fields)
         except Exception as e:
             return jsonify({"error": str(e)}), 500
+
+    @app.route("/upload-logo", methods=["POST"])
+    def upload_logo():
+        try:
+            file = request.files.get("logo")
+            if not file:
+                return "No se recibió ningún archivo", 400
+            ext = os.path.splitext(file.filename)[1].lower()
+            if ext not in [".png", ".jpg", ".jpeg"]:
+                return "Formato no permitido. Usa PNG o JPG.", 400
+            save_path = IMAGES_DIR / ("event-logo" + ext)
+            file.save(str(save_path))
+            return "✅ Logo actualizado correctamente."
+        except Exception as e:
+            return f"❌ Error al subir logo: {str(e)}", 500
 
     @app.route("/upload-artist-photo/<artist>", methods=["POST"])
     def upload_artist_photo(artist):
@@ -427,12 +459,9 @@ def create_app():
             if ext not in [".jpg", ".jpeg", ".png", ".bmp"]:
                 return "Formato no permitido", 400
 
-            base_dir = Path(__file__).resolve().parents[1]
-            images_dir = base_dir / "songs" / "images" / "artist"
-            images_dir.mkdir(parents=True, exist_ok=True)
-
             safe_artist = artist.strip().replace("/", "_").replace("\\", "_")
-            save_path = images_dir / (safe_artist + ext)
+            save_path = ARTIST_IMG_DIR / (safe_artist + ext)
+            ARTIST_IMG_DIR.mkdir(parents=True, exist_ok=True)
             file.save(str(save_path))
             return "✅ Imagen subida correctamente."
         except Exception as e:
