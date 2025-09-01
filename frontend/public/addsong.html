@@ -107,48 +107,74 @@
   </div>
 
   <script>
-    // ===== Añadir canción =====
-    async function submitForm() {
-      const data = {
-        id: document.getElementById("id").value.trim(),
-        name: document.getElementById("name").value.trim(),
-        artist: document.getElementById("artist").value.trim(),
-        year: document.getElementById("year").value.trim(),
-        language: document.getElementById("language").value.trim(),
-        genre: document.getElementById("genre").value.trim(),
-        duration: document.getElementById("duration").value.trim(),
-        mood: document.getElementById("mood").value.trim(),
-        key: document.getElementById("key").value.trim(),
-        tempo: document.getElementById("tempo").value.trim(),
-        lyrics: document.getElementById("lyrics").value,
-        tab: document.getElementById("tab").value,
-      };
+  async function submitForm() {
+    const data = {
+      id: document.getElementById("id").value.trim(),
+      name: document.getElementById("name").value.trim(),
+      artist: document.getElementById("artist").value.trim(),
+      year: document.getElementById("year").value.trim(),
+      language: document.getElementById("language").value.trim(),
+      genre: document.getElementById("genre").value.trim(),
+      duration: document.getElementById("duration").value.trim(),
+      mood: document.getElementById("mood").value.trim(),
+      key: document.getElementById("key").value.trim(),
+      tempo: document.getElementById("tempo").value.trim(),
+      lyrics: document.getElementById("lyrics").value,
+      tab: document.getElementById("tab").value,
+    };
 
-      if (!data.id) {
-        alert("El campo ID es obligatorio.");
-        return;
-      }
+    if (!data.id) {
+      alert("El campo ID es obligatorio.");
+      return;
+    }
 
-      try {
-        const res = await fetch("/add-song", {
+    try {
+      // 1º intento (sin overwrite)
+      let res = await fetch("/add-song", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (res.status === 409) {
+        // Conflicto: ya existe ese ID. Pedimos confirmación.
+        const info = await res.json();
+        const ex = info.existing || {};
+        const ok = confirm(
+          `⚠️ Ya existe el ID "${info.id}":\n` +
+          `Título: ${ex.name || "(sin título)"}\n` +
+          `Artista: ${ex.artist || "(sin artista)"}\n\n` +
+          `¿Quieres SOBRESCRIBIR esta canción (datos, letra y tablatura)?`
+        );
+        if (!ok) {
+          alert("Operación cancelada. No se hicieron cambios.");
+          return;
+        }
+
+        // 2º intento con overwrite=true
+        const data2 = { ...data, overwrite: true };
+        res = await fetch("/add-song", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
+          body: JSON.stringify(data2),
         });
-
-        const msg = await res.text();
-        alert(msg);
-
-        if (res.ok) {
-          await refreshCatalog();   // regenerar catalog.json
-          // Limpieza rápida de campos principales
-          ["id","name","artist","year","language","genre","duration","mood","key","tempo","lyrics","tab"].forEach(id => document.getElementById(id).value = "");
-        }
-      } catch (e) {
-        console.error(e);
-        alert("❌ Error al añadir canción");
       }
+
+      const msg = await res.text();
+      alert(msg);
+
+      if (res.ok) {
+        await refreshCatalog();   // regenerar catalog.json
+        // Limpieza rápida
+        ["id","name","artist","year","language","genre","duration","mood","key","tempo","lyrics","tab"]
+          .forEach(id => document.getElementById(id).value = "");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("❌ Error al añadir/actualizar canción");
     }
+  }
+</script>
 
     // ===== Catálogo (upload/refresh/download/edit) =====
     async function uploadCatalog() {
