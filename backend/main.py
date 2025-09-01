@@ -89,6 +89,53 @@ def create_app():
     @app.route("/addsong.html")
     def addsong():
         return send_from_directory(str(PUBLIC_DIR), "addsong.html")
+        
+    @app.route("/update-song", methods=["POST"])
+    def update_song():
+        """Actualizar UN campo de una canción por ID (sin tocar letra/tab)."""
+        try:
+            data = request.get_json(force=True)
+            song_id = (data.get("id") or "").strip()
+            field   = (data.get("field") or "").strip()
+            value   = data.get("value")
+            # normaliza strings
+            if isinstance(value, str):
+                value = value.strip()
+
+            allowed = ["name","artist","year","language","genre","duration","mood","key","tempo","enabled"]
+            if not song_id or field not in allowed:
+                return "Parámetros inválidos (id/field). Campos válidos: " + ", ".join(allowed), 400
+
+            # leer CSV actual
+            with open(CATALOG_CSV, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f, delimiter=";")
+                fieldnames = reader.fieldnames or (["id"] + allowed)
+                rows = list(reader)
+
+            # aplicar cambio
+            found = False
+            for row in rows:
+                if (row.get("id") or "").strip() == song_id:
+                    row[field] = "" if value is None else str(value)
+                    found = True
+                    break
+
+            if not found:
+                return f"ID no encontrado: {song_id}", 404
+
+            # escribir CSV
+            tmp = Path(str(CATALOG_CSV) + ".tmp")
+            with open(tmp, "w", newline="", encoding="utf-8") as f:
+                w = csv.DictWriter(f, fieldnames=fieldnames, delimiter=";")
+                w.writeheader()
+                for r in rows:
+                    w.writerow(r)
+
+            os.replace(tmp, CATALOG_CSV)
+            return f"✅ Actualizado '{field}' de '{song_id}'.", 200
+
+        except Exception as e:
+            return f"❌ Error al actualizar: {str(e)}", 500
 
     @app.route("/ran.html")
     def ran():
