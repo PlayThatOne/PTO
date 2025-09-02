@@ -111,13 +111,39 @@ def _write_text(path, content):
         f.write(content)
 
 def _append_catalog_row(row):
-    header = ["id","title","artist","year","language","genre","enabled"]
+    # Cabecera por defecto de tu sistema (sin 'title')
+    default_header = ["id","name","artist","year","language","genre","enabled"]
+
+    header = None
     exists = os.path.exists(CATALOG_CSV)
-    if not exists:
+
+    if exists:
+        # Lee la cabecera existente
+        with open(CATALOG_CSV, "r", encoding="utf-8", newline="") as f:
+            reader = csv.reader(f)
+            try:
+                header = next(reader)
+            except StopIteration:
+                header = default_header[:]  # archivo vacío: usa por defecto
+    else:
+        header = default_header[:]
         with open(CATALOG_CSV, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f); writer.writerow(header)
+            writer = csv.writer(f)
+            writer.writerow(header)
+
+    # Si por lo que sea la cabecera existente es distinta, adaptamos:
+    # (p.ej. alguien creó una versión con 'title' en vez de 'name')
+    adaptive_row = row.copy()
+    if "title" in header and "name" not in header:
+        # sistema raro que usa 'title' como campo principal
+        adaptive_row["title"] = adaptive_row.get("name", "")
+    if "name" in header and "title" not in header:
+        # tu caso normal; nada que hacer
+        pass
+
     with open(CATALOG_CSV, "a", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f); writer.writerow([row.get(k,"") for k in header])
+        writer = csv.writer(f)
+        writer.writerow([adaptive_row.get(k, "") for k in header])
 
 # ---------- RUTAS ----------
 
@@ -227,7 +253,7 @@ def ingest_create():
     _write_text(tab_path, pasted)
     _write_text(lyr_path, lyrics_g)
 
-    row = {"id":sid,"title":title,"artist":artist,"year":year,"language":language,"genre":genre,"enabled":"Y"}
+    row = {"id":sid,"name":title,"artist":artist,"year":year,"language":language,"genre":genre,"enabled":"Y"}
     _append_catalog_row(row)
 
     updated = False
