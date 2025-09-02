@@ -278,4 +278,22 @@ def ingest_create():
     except Exception:
         pass
 
-    return jsonify({"ok": True, "id": sid, "updated_catalog": updated})
+    return jsonify({"ok": True, "id": sid, "updated_catalog": updated, "csv_path": CATALOG_CSV})
+    
+@ingest_bp.route("/songs/ingest/debug_catalog", methods=["GET"])
+def ingest_debug_catalog():
+    info = {
+        "path": CATALOG_CSV,
+        "exists": os.path.exists(CATALOG_CSV),
+        "size": os.path.getsize(CATALOG_CSV) if os.path.exists(CATALOG_CSV) else 0,
+        "head": "",
+        "tail": "",
+    }
+    try:
+        with open(CATALOG_CSV, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        info["head"] = "".join(lines[:2]).strip()   # cabecera + 1a fila
+        info["tail"] = "".join(lines[-2:]).strip()  # últimas 2 filas
+    except Exception as e:
+        info["error"] = str(e)
+    return jsonify(info)
