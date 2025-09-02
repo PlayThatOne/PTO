@@ -1,6 +1,6 @@
 # backend/api/ingest.py
 import os, re, csv, json, urllib.parse, urllib.request
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_from_directory
 
 ingest_bp = Blueprint("ingest_bp", __name__)
 
@@ -297,3 +297,12 @@ def ingest_debug_catalog():
     except Exception as e:
         info["error"] = str(e)
     return jsonify(info)
+    
+# Servir TABs y Lyrics desde backend/songs/*
+@ingest_bp.route("/songs/tabs/<path:filename>", methods=["GET"])
+def serve_tab_file(filename):
+    return send_from_directory(TABS_DIR, filename)
+
+@ingest_bp.route("/songs/lyrics/<path:filename>", methods=["GET"])
+def serve_lyrics_file(filename):
+    return send_from_directory(LYRICS_DIR, filename)
