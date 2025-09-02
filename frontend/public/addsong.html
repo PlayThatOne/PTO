@@ -88,10 +88,10 @@
           <label>Language</label>   <input id="det-lang" value="English">
           <label>Genre</label>      <input id="det-genre" placeholder="(optional)">
         </div>
-        <div style="margin-top:10px;">
-          <strong>Lyrics guess:</strong>
-          <pre id="det-lyrics" style="white-space:pre-wrap; background:#f9f9f9; padding:8px; border:1px solid #eee; border-radius:6px; max-height:220px; overflow:auto;"></pre>
-        </div>
+      <div style="margin-top:10px;">
+        <strong>Lyrics guess:</strong>
+        <textarea id="det-lyrics" rows="10" style="width:100%; font-family: monospace; background:#f9f9f9; padding:8px; border:1px solid #eee; border-radius:6px;"></textarea>
+      </div>
         <div style="margin-top:10px;">
           <strong>Quick links:</strong>
           <a id="lk-lyrics-google" target="_blank">Google lyrics</a> ·
@@ -569,7 +569,7 @@
         f('det-year').value   = j.info.year || '';
         f('det-lang').value   = j.info.language || '';
         f('det-genre').value  = j.info.genre || '';
-        f('det-lyrics').textContent = j.info.lyrics_guess || '';
+        f('det-lyrics').value = j.info.lyrics_guess || '';
 
         // Enlaces
         f('lk-lyrics-google').href = j.links.lyrics_google;
@@ -620,7 +620,7 @@
       lastInfo.year         = (f('det-year').value || lastInfo.year).trim();
       lastInfo.language     = (f('det-lang').value || lastInfo.language).trim();
       lastInfo.genre        = (f('det-genre').value || lastInfo.genre).trim();
-      lastInfo.lyrics_guess = f('det-lyrics').textContent;
+      lastInfo.lyrics_guess = f('det-lyrics').value;
 
       const pasted = ($paste.value||"").trim();
       $create.disabled = true; $create.textContent = "Creating…";
