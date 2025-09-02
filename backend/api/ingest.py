@@ -12,7 +12,12 @@ TABS_DIR   = os.path.join(SONGS_DIR, "tabs")
 CORE_DIR   = os.path.join(BASE_DIR, "core")
 CATALOG_CSV = os.path.join(CORE_DIR, "catalog_postgres.csv")
 META_CACHE_PATH = os.path.join(CORE_DIR, "metadata_cache.json")
-
+FRONTEND_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend")
+PUBLIC_DIR   = os.path.join(FRONTEND_DIR, "public")
+PUB_TABS_DIR   = os.path.join(PUBLIC_DIR, "songs", "tabs")
+PUB_LYRICS_DIR = os.path.join(PUBLIC_DIR, "songs", "lyrics")
+os.makedirs(PUB_TABS_DIR, exist_ok=True)
+os.makedirs(PUB_LYRICS_DIR, exist_ok=True)
 os.makedirs(LYRICS_DIR, exist_ok=True)
 os.makedirs(TABS_DIR, exist_ok=True)
 os.makedirs(CORE_DIR, exist_ok=True)
@@ -248,8 +253,8 @@ def ingest_create():
     lyrics_g = info.get("lyrics_guess","")
 
     # rutas de ficheros
-    tab_path = os.path.join(TABS_DIR,   f"TAB{sid}.txt")
-    lyr_path = os.path.join(LYRICS_DIR, f"{sid}.txt")
+    tab_path = os.path.join(PUB_TABS_DIR,   f"TAB{sid}.txt")
+    lyr_path = os.path.join(PUB_LYRICS_DIR, f"{sid}.txt")
     if os.path.exists(tab_path) or os.path.exists(lyr_path):
         return jsonify({"ok": False, "error": "id_exists", "id": sid}), 409
 
