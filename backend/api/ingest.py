@@ -120,6 +120,7 @@ def _append_catalog_row(row):
     Escribe SIEMPRE en backend/core/catalog_postgres.csv
     - separador ';'
     - cabecera exacta de 12 columnas PTO
+      id;name;artist;year;language;genre;popularity;duration;mood;key;tempo;enabled
     """
     header = ["id","name","artist","year","language","genre","popularity","duration","mood","key","tempo","enabled"]
     delim = ";"
@@ -132,7 +133,7 @@ def _append_catalog_row(row):
             w = csv.writer(f, delimiter=delim)
             w.writerow(header)
 
-    # Escribe la fila respetando ese orden, dejando vacío lo que no tengas
+    # Construye la fila en el orden exacto de la cabecera
     values = {
         "id":        row.get("id",""),
         "name":      row.get("name",""),
@@ -147,9 +148,11 @@ def _append_catalog_row(row):
         "tempo":     row.get("tempo",""),
         "enabled":   row.get("enabled","Y"),
     }
+
     with open(CATALOG_CSV, "a", encoding="utf-8", newline="") as f:
         w = csv.writer(f, delimiter=delim)
         w.writerow([values.get(k, "") for k in header])
+
 
 # ---------- RUTAS ----------
 
