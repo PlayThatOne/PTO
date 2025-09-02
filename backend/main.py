@@ -131,6 +131,124 @@ def delete_proposal(slug):
     except Exception:
         pass
     return jsonify({"ok": True})
+    
+# =========================
+# Fetch metadata (year, genre) from public APIs
+# =========================
+import urllib.parse, urllib.request
+
+META_CACHE_PATH = os.path.join(os.path.dirname(__file__), "core", "metadata_cache.json")
+os.makedirs(os.path.dirname(META_CACHE_PATH), exist_ok=True)
+if not os.path.exists(META_CACHE_PATH):
+    with open(META_CACHE_PATH, "w", encoding="utf-8") as f:
+        f.write("{}")
+
+def _load_meta_cache():
+    try:
+        with open(META_CACHE_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def _save_meta_cache(d):
+    with open(META_CACHE_PATH, "w", encoding="utf-8") as f:
+        json.dump(d, f, ensure_ascii=False, indent=2)
+
+def _http_json(url, headers=None, timeout=7):
+    req = urllib.request.Request(url, headers=headers or {})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8", errors="ignore"))
+
+def _score_match(qt, qa, it_title, it_artist):
+    # coincidencias sencillas sin librerías extra
+    t = it_title.lower()
+    a = (it_artist or "").lower()
+    s = 0
+    if qt in t: s += 3
+    if qa and qa in a: s += 2
+    # bonus por igualdad (muy aproximado)
+    if t == qt: s += 2
+    if qa and a == qa: s += 1
+    return s
+
+@ingest_bp.route("/songs/ingest/fetch_meta", methods=["POST"])
+def ingest_fetch_meta():
+    payload = request.get_json(silent=True) or {}
+    title = (payload.get("title") or "").strip()
+    artist = (payload.get("artist") or "").strip()
+    if not title:
+        return jsonify({"ok": False, "error": "missing_title"}), 400
+
+    key = (title.lower(), artist.lower())
+    cache = _load_meta_cache()
+    if "|".join(key) in cache:
+        return jsonify({"ok": True, "source": "cache", **cache["|".join(key)]})
+
+    qt = title.lower()
+    qa = artist.lower() if artist else ""
+
+    # 1) iTunes Search API
+    try:
+        q = urllib.parse.quote_plus((title + " " + artist).strip())
+        url = f"https://itunes.apple.com/search?term={q}&entity=song&limit=5"
+        data = _http_json(url, headers={"User-Agent":"PTO/1.0"})
+        best = None; best_score = -1
+        for it in data.get("results", []):
+            sc = _score_match(qt, qa, it.get("trackName",""), it.get("artistName",""))
+            if sc > best_score:
+                best, best_score = it, sc
+        if best:
+            year = ""
+            rd = best.get("releaseDate") or ""
+            if rd and len(rd) >= 4:
+                year = rd[:4]
+            genre = best.get("primaryGenreName") or ""
+            result = {"ok": True, "source": "itunes", "year": year, "genre": genre}
+            cache["|".join(key)] = result
+            _save_meta_cache(cache)
+            return jsonify(result)
+    except Exception:
+        pass
+
+    # 2) MusicBrainz (fallback)
+    try:
+        # query por título (con comillas) y artista si hay
+        if artist:
+            q = f'recording:"{title}" AND artist:"{artist}"'
+        else:
+            q = f'recording:"{title}"'
+        url = "https://musicbrainz.org/ws/2/recording/?query=" + urllib.parse.quote(q) + "&fmt=json&limit=5"
+        data = _http_json(url, headers={"User-Agent":"PTO/1.0 (playthatone)"})
+        recs = data.get("recordings", []) or []
+        year = ""; genre = ""
+        if recs:
+            # coge la mejor por score si viene, si no la primera
+            recs.sort(key=lambda r: int(r.get("score", 0)), reverse=True)
+            r0 = recs[0]
+            # año: desde "first-release-date" o en releases
+            year = (r0.get("first-release-date","") or "")[:4]
+            if not year and r0.get("releases"):
+                for rel in r0["releases"]:
+                    d = rel.get("date","")
+                    if d and len(d)>=4:
+                        year = d[:4]; break
+            # género: si trae tags
+            tags = r0.get("tags") or []
+            if tags:
+                tags.sort(key=lambda t: int(t.get("count",1)), reverse=True)
+                genre = tags[0].get("name","")
+        result = {"ok": True, "source": "musicbrainz", "year": year, "genre": genre}
+        cache["|".join(key)] = result
+        _save_meta_cache(cache)
+        return jsonify(result)
+    except Exception:
+        pass
+
+    # Si nada devuelve
+    result = {"ok": True, "source": "none", "year": "", "genre": ""}
+    cache["|".join(key)] = result
+    _save_meta_cache(cache)
+    return jsonify(result)
 
 def create_app():
     print(">> creando app")
