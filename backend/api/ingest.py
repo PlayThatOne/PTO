@@ -237,28 +237,40 @@ def ingest_create():
     if not pasted or not info:
         return jsonify({"ok": False, "error": "missing_data"}), 400
 
-    sid       = info.get("id") or _slug_underscore(info.get("title",""))
-    title     = info.get("title","").strip() or "Untitled"
-    artist    = info.get("artist","").strip()
-    year      = info.get("year","").strip()
-    language  = info.get("language","").strip()
-    genre     = info.get("genre","").strip()
-    lyrics_g  = info.get("lyrics_guess","")
+    # id técnico (slug) y título visible
+    sid    = info.get("id") or _slug_underscore(info.get("title",""))
+    title  = info.get("title","").strip() or "Untitled"
+    artist = info.get("artist","").strip()
+    year   = info.get("year","").strip()
+    language = info.get("language","").strip()
+    genre    = info.get("genre","").strip()
+    lyrics_g = info.get("lyrics_guess","")
 
+    # rutas de ficheros
     tab_path = os.path.join(TABS_DIR,   f"TAB{sid}.txt")
     lyr_path = os.path.join(LYRICS_DIR, f"{sid}.txt")
     if os.path.exists(tab_path) or os.path.exists(lyr_path):
         return jsonify({"ok": False, "error": "id_exists", "id": sid}), 409
 
+    # guardar tablatura y letra
     _write_text(tab_path, pasted)
     _write_text(lyr_path, lyrics_g)
 
-    row = {"id":sid,"name":title,"artist":artist,"year":year,"language":language,"genre":genre,"enabled":"Y"}
+    # fila de catálogo (solo 'name', no 'title')
+    row = {
+        "id": sid,
+        "name": title,
+        "artist": artist,
+        "year": year,
+        "language": language,
+        "genre": genre,
+        "enabled": "Y",
+    }
     _append_catalog_row(row)
 
+    # intentar regenerar catálogo automáticamente
     updated = False
     try:
-        # si tienes función local para regenerar, úsala; si no, usarás tu botón en el panel
         from backend.core.gen_catalog import generate_catalog  # si existe
         generate_catalog()
         updated = True
