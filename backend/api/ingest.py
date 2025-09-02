@@ -111,39 +111,40 @@ def _write_text(path, content):
         f.write(content)
 
 def _append_catalog_row(row):
-    # Cabecera por defecto de tu sistema (sin 'title')
-    default_header = ["id","name","artist","year","language","genre","enabled"]
+    """
+    Escribe SIEMPRE en backend/core/catalog_postgres.csv
+    - separador ';'
+    - cabecera exacta de 12 columnas PTO
+    """
+    header = ["id","name","artist","year","language","genre","popularity","duration","mood","key","tempo","enabled"]
+    delim = ";"
 
-    header = None
-    exists = os.path.exists(CATALOG_CSV)
+    # Si no existe, crea con cabecera
+    is_new = not os.path.exists(CATALOG_CSV)
+    if is_new:
+        os.makedirs(os.path.dirname(CATALOG_CSV), exist_ok=True)
+        with open(CATALOG_CSV, "w", encoding="utf-8", newline="") as f:
+            w = csv.writer(f, delimiter=delim)
+            w.writerow(header)
 
-    if exists:
-        # Lee la cabecera existente
-        with open(CATALOG_CSV, "r", encoding="utf-8", newline="") as f:
-            reader = csv.reader(f)
-            try:
-                header = next(reader)
-            except StopIteration:
-                header = default_header[:]  # archivo vacío: usa por defecto
-    else:
-        header = default_header[:]
-        with open(CATALOG_CSV, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(header)
-
-    # Si por lo que sea la cabecera existente es distinta, adaptamos:
-    # (p.ej. alguien creó una versión con 'title' en vez de 'name')
-    adaptive_row = row.copy()
-    if "title" in header and "name" not in header:
-        # sistema raro que usa 'title' como campo principal
-        adaptive_row["title"] = adaptive_row.get("name", "")
-    if "name" in header and "title" not in header:
-        # tu caso normal; nada que hacer
-        pass
-
-    with open(CATALOG_CSV, "a", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow([adaptive_row.get(k, "") for k in header])
+    # Escribe la fila respetando ese orden, dejando vacío lo que no tengas
+    values = {
+        "id":        row.get("id",""),
+        "name":      row.get("name",""),
+        "artist":    row.get("artist",""),
+        "year":      row.get("year",""),
+        "language":  row.get("language",""),
+        "genre":     row.get("genre",""),
+        "popularity":row.get("popularity",""),
+        "duration":  row.get("duration",""),
+        "mood":      row.get("mood",""),
+        "key":       row.get("key",""),
+        "tempo":     row.get("tempo",""),
+        "enabled":   row.get("enabled","Y"),
+    }
+    with open(CATALOG_CSV, "a", encoding="utf-8", newline="") as f:
+        w = csv.writer(f, delimiter=delim)
+        w.writerow([values.get(k, "") for k in header])
 
 # ---------- RUTAS ----------
 
