@@ -629,7 +629,16 @@
       }
       window.fitSongLabels = fitSongLabels;
     })();
-    </script>
+
+</script>
+
+<!-- Cajetín para propuestas -->
+<div id="suggest-box" style="margin:16px auto; padding:12px; border:1px solid #ccc; border-radius:10px; max-width:600px;">
+  <label for="suggest-title" style="font-weight:bold;">Suggest a song</label>
+  <input id="suggest-title" type="text" placeholder="Type a title…" style="margin-left:10px;"/>
+  <button id="suggest-send">Send</button>
+  <span id="suggest-msg" style="margin-left:8px;"></span>
+</div>
 
 <hr style="margin-top: 40px;">
 
@@ -639,7 +648,7 @@
   </a>
 
   <span style="margin-right: 10px;">
-    Donaciones a PTO: <span id="pto-phone">0034658327204</span>
+    Donaciones a PTO: <strong>Tel</strong> <span id="pto-phone">0034658327204</span>
   </span>
   <button onclick="copyPhone()" style="padding: 4px 10px; font-size: 0.95em; cursor: pointer;">
     Copiar
@@ -649,6 +658,38 @@
     Instagram PTO
   </a>
 </div>
+
+<script>
+(function(){
+  const $t = document.getElementById('suggest-title');
+  const $b = document.getElementById('suggest-send');
+  const $m = document.getElementById('suggest-msg');
+
+  async function sendProposal(){
+    const title = ($t.value || "").trim();
+    if (!title) { $t.focus(); return; }
+    $b.disabled = true; $m.textContent = "Sending…";
+    try {
+      const r = await fetch('/proposals', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({title})
+      });
+      if (!r.ok) throw new Error('net');
+      $t.value = "";
+      $m.textContent = "Thanks!";
+      setTimeout(()=>{$m.textContent="";}, 1500);
+    } catch(e) {
+      $m.textContent = "Error. Try again later.";
+    } finally {
+      $b.disabled = false;
+    }
+  }
+
+  $b.addEventListener('click', sendProposal);
+  $t.addEventListener('keydown', (e)=>{ if(e.key==='Enter') sendProposal(); });
+})();
+</script>
 
 <script>
   function copyPhone() {
