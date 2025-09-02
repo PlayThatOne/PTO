@@ -215,11 +215,6 @@
     titleButton.addEventListener("click", () => {
       if (nowPlayingId) loadTab(nowPlayingId);
     });
-  
-<section id="proposals-panel" style="margin-top:16px; border-top:1px solid #ddd; padding-top:12px;">
-  <h3 style="margin:0 0 8px 0;">Proposals</h3>
-  <ul id="proposals-list" style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px;"></ul>
-</section>
 
     resetButton.addEventListener("click", async () => {
       if (confirm("¿Seguro que quieres reiniciar la sesión?")) {
@@ -235,6 +230,12 @@
 
     init();
   </script>
+  
+<!-- Panel de propuestas -->
+<section id="proposals-panel" style="margin-top:16px; border-top:1px solid #ddd; padding-top:12px;">
+ <h3 style="margin:0 0 8px 0;">Proposals</h3>
+ <ul id="proposals-list" style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px;"></ul>
+</section>
 
 <script>
 (function(){
