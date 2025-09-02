@@ -66,6 +66,47 @@
 
     <button type="button" onclick="submitForm()">Añadir canción</button>
 
+    <section id="paste-add" style="border:1px solid #ccc; border-radius:10px; padding:12px; margin:16px 0;">
+      <h3 style="margin-top:0;">Paste & Add (fast)</h3>
+      <p>Pega aquí tu tablatura; detectaremos título, artista, año… y generaremos TAB y letras.</p>
+      <textarea id="paste-input" rows="12" style="width:100%; font-family: monospace;"></textarea>
+
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin:8px 0;">
+        <button id="btn-parse">Parse</button>
+        <button id="btn-fetch">Fetch metadata</button>
+        <button id="btn-create" disabled>Create files & add to catalog</button>
+      </div>
+
+      <div id="parse-result" style="display:none;">
+        <h4>Detected</h4>
+        <div style="display:grid; grid-template-columns: 140px 1fr; gap:6px; align-items:center;">
+          <label>ID</label>         <input id="det-id">
+          <label>Title</label>      <input id="det-title">
+          <label>Artist</label>     <input id="det-artist">
+          <label>Year</label>       <input id="det-year">
+          <label>Language</label>   <input id="det-lang" value="English">
+          <label>Genre</label>      <input id="det-genre" placeholder="(optional)">
+        </div>
+        <div style="margin-top:10px;">
+          <strong>Lyrics guess:</strong>
+          <pre id="det-lyrics" style="white-space:pre-wrap; background:#f9f9f9; padding:8px; border:1px solid #eee; border-radius:6px; max-height:220px; overflow:auto;"></pre>
+        </div>
+        <div style="margin-top:10px;">
+          <strong>Quick links:</strong>
+          <a id="lk-lyrics-google" target="_blank">Google lyrics</a> ·
+          <a id="lk-letras" target="_blank">letras.com</a> ·
+          <a id="lk-chords-google" target="_blank">Google chords</a> ·
+          <a id="lk-youtube" target="_blank">YouTube chords</a>
+        </div>
+      </div>
+    </section>
+    <!-- 👆 Fin del bloque -->
+
+    <div class="side-by-side">
+      <button type="button" onclick="editCatalog()">Editar datos</button>
+      <button type="button" onclick="downloadCatalog()">Descargar catálogo</button>
+    </div>
+
     <div class="side-by-side">
       <button type="button" onclick="editCatalog()">Editar datos</button>
       <button type="button" onclick="downloadCatalog()">Descargar catálogo</button>
