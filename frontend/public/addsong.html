@@ -66,15 +66,16 @@
 
     <button type="button" onclick="submitForm()">Añadir canción</button>
 
+    <!-- Paste & Add (fast) -->
     <section id="paste-add" style="border:1px solid #ccc; border-radius:10px; padding:12px; margin:16px 0;">
       <h3 style="margin-top:0;">Paste & Add (fast)</h3>
       <p>Pega aquí tu tablatura; detectaremos título, artista, año… y generaremos TAB y letras.</p>
       <textarea id="paste-input" rows="12" style="width:100%; font-family: monospace;"></textarea>
 
       <div style="display:flex; gap:8px; flex-wrap:wrap; margin:8px 0;">
-        <button id="btn-parse">Parse</button>
-        <button id="btn-fetch">Fetch metadata</button>
-        <button id="btn-create" disabled>Create files & add to catalog</button>
+        <button id="btn-parse" type="button">Parse</button>
+        <button id="btn-fetch" type="button">Fetch metadata</button>
+        <button id="btn-create" type="button" disabled>Create files & add to catalog</button>
       </div>
 
       <div id="parse-result" style="display:none;">
@@ -100,12 +101,7 @@
         </div>
       </div>
     </section>
-    <!-- 👆 Fin del bloque -->
-
-    <div class="side-by-side">
-      <button type="button" onclick="editCatalog()">Editar datos</button>
-      <button type="button" onclick="downloadCatalog()">Descargar catálogo</button>
-    </div>
+    <!-- Fin Paste & Add -->
 
     <div class="side-by-side">
       <button type="button" onclick="editCatalog()">Editar datos</button>
@@ -494,8 +490,7 @@
         console.error("Error cargando campos híbridos:", e);
       }
     }
-    
-    <!-- PÉGALO JUSTO ANTES DE // Carga inicial -->
+
     // === Corrección rápida (JS) ===
     async function updateOneField() {
       const id    = document.getElementById("fix-id").value.trim();
@@ -533,6 +528,7 @@
     });
   </script>
 
+  <!-- Datalists -->
   <datalist id="artist-list"></datalist>
   <datalist id="year-list"></datalist>
   <datalist id="language-list"></datalist>
@@ -540,19 +536,131 @@
   <datalist id="mood-list"></datalist>
   <datalist id="key-list"></datalist>
 
-    // Carga inicial
-    window.addEventListener("DOMContentLoaded", () => {
-      loadMissingArtists();
-      loadHybridFields();
-      loadSongList();
+  <!-- Script: Paste & Add (Parse + Fetch metadata + Create) -->
+  <script>
+  (function(){
+    const $paste  = document.getElementById('paste-input');
+    const $parse  = document.getElementById('btn-parse');
+    const $fetch  = document.getElementById('btn-fetch');
+    const $create = document.getElementById('btn-create');
+    const $panel  = document.getElementById('parse-result');
+
+    const f = (id)=>document.getElementById(id);
+
+    let lastInfo = null;
+
+    $parse.addEventListener('click', async ()=>{
+      const pasted = ($paste.value||"").trim();
+      if (!pasted) { $paste.focus(); return; }
+      $parse.disabled = true; $parse.textContent = "Parsing…";
+      try {
+        const r = await fetch('/songs/ingest/parse', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ pasted })
+        });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error||'parse_failed');
+        lastInfo = j.info;
+
+        f('det-id').value     = j.info.id || '';
+        f('det-title').value  = j.info.title || '';
+        f('det-artist').value = j.info.artist || '';
+        f('det-year').value   = j.info.year || '';
+        f('det-lang').value   = j.info.language || '';
+        f('det-genre').value  = j.info.genre || '';
+        f('det-lyrics').textContent = j.info.lyrics_guess || '';
+
+        // Enlaces
+        f('lk-lyrics-google').href = j.links.lyrics_google;
+        f('lk-letras').href        = j.links.lyrics_letras;
+        f('lk-chords-google').href = j.links.chords_google;
+        f('lk-youtube').href       = j.links.youtube;
+
+        $panel.style.display = 'block';
+        $create.disabled = false;
+      } catch(e) {
+        alert("Parse error. Revisa el pegado o inténtalo de nuevo.");
+      } finally {
+        $parse.disabled = false; $parse.textContent = "Parse";
+      }
     });
+
+    $fetch.addEventListener('click', async ()=>{
+      const title  = (f('det-title').value || '').trim();
+      const artist = (f('det-artist').value || '').trim();
+      if (!title) { alert("Pon un Title primero"); return; }
+
+      $fetch.disabled = true; $fetch.textContent = "Fetching…";
+      try {
+        const r = await fetch('/songs/ingest/fetch_meta', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ title, artist })
+        });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error||'fetch_failed');
+        if (j.year)  f('det-year').value  = j.year;
+        if (j.genre) f('det-genre').value = j.genre;
+        console.log("Metadata source:", j.source);
+      } catch(e) {
+        alert("No se han encontrado metadatos ahora.");
+      } finally {
+        $fetch.disabled = false; $fetch.textContent = "Fetch metadata";
+      }
+    });
+
+    $create.addEventListener('click', async ()=>{
+      if (!lastInfo) return;
+
+      // Overrides manuales
+      lastInfo.id           = (f('det-id').value || lastInfo.id).trim();
+      lastInfo.title        = (f('det-title').value || lastInfo.title).trim();
+      lastInfo.artist       = (f('det-artist').value || lastInfo.artist).trim();
+      lastInfo.year         = (f('det-year').value || lastInfo.year).trim();
+      lastInfo.language     = (f('det-lang').value || lastInfo.language).trim();
+      lastInfo.genre        = (f('det-genre').value || lastInfo.genre).trim();
+      lastInfo.lyrics_guess = f('det-lyrics').textContent;
+
+      const pasted = ($paste.value||"").trim();
+      $create.disabled = true; $create.textContent = "Creating…";
+      try {
+        const r = await fetch('/songs/ingest/create', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ pasted, info: lastInfo })
+        });
+        const j = await r.json();
+        if (!j.ok) {
+          if (j.error === 'id_exists') {
+            alert("Ese ID ya existe: " + (j.id||""));
+          } else {
+            alert("Create error: " + (j.error||""));
+          }
+          return;
+        }
+        alert("Song created: " + j.id + (j.updated_catalog ? "\nCatalog updated." : "\nRecuerda pulsar 'Actualizar catálogo'."));
+
+        // Limpieza
+        $paste.value = "";
+        $panel.style.display = 'none';
+        $create.disabled = true; $create.textContent = "Create files & add to catalog";
+      } catch(e) {
+        alert("Create error.");
+      } finally {
+        $create.disabled = false; $create.textContent = "Create files & add to catalog";
+      }
+    });
+  })();
   </script>
 
+  <!-- Datalists (una sola vez) -->
   <datalist id="artist-list"></datalist>
   <datalist id="year-list"></datalist>
   <datalist id="language-list"></datalist>
   <datalist id="genre-list"></datalist>
   <datalist id="mood-list"></datalist>
   <datalist id="key-list"></datalist>
+
 </body>
 </html>
