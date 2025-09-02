@@ -215,6 +215,11 @@
     titleButton.addEventListener("click", () => {
       if (nowPlayingId) loadTab(nowPlayingId);
     });
+  
+<section id="proposals-panel" style="margin-top:16px; border-top:1px solid #ddd; padding-top:12px;">
+  <h3 style="margin:0 0 8px 0;">Proposals</h3>
+  <ul id="proposals-list" style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px;"></ul>
+</section>
 
     resetButton.addEventListener("click", async () => {
       if (confirm("¿Seguro que quieres reiniciar la sesión?")) {
@@ -230,6 +235,74 @@
 
     init();
   </script>
+
+<script>
+(function(){
+  const list = document.getElementById('proposals-list');
+
+  function makeRow(p){
+    const li = document.createElement('li');
+    li.dataset.slug = p.slug;
+    li.style.display = 'flex';
+    li.style.gap = '8px';
+    li.style.alignItems = 'center';
+
+    const title = document.createElement('span');
+    title.textContent = `${p.title}  (x${p.count})`;
+    title.style.flex = '1';
+
+    const btnCopy = document.createElement('button');
+    btnCopy.textContent = '⧉ Copy';
+    btnCopy.onclick = async ()=> {
+      try { await navigator.clipboard.writeText(p.title); } catch {}
+      btnCopy.textContent = '✓ Copied';
+      setTimeout(()=>btnCopy.textContent='⧉ Copy', 900);
+    };
+
+    const btnSearch = document.createElement('button');
+    btnSearch.textContent = 'Search';
+    btnSearch.onclick = ()=> {
+      const q = encodeURIComponent(p.title);
+      window.open(`https://www.google.com/search?q=${q}+chords`, '_blank');
+      window.open(`https://www.google.com/search?q=${q}+lyrics`, '_blank');
+      window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${q}`, '_blank');
+      window.open(`https://www.youtube.com/results?search_query=${q}+chords`, '_blank');
+    };
+
+    const btnDel = document.createElement('button');
+    btnDel.textContent = 'Dismiss';
+    btnDel.onclick = async ()=> {
+      await fetch(`/proposals/${p.slug}`, { method:'DELETE' });
+      const node = list.querySelector(`li[data-slug="${p.slug}"]`);
+      if (node) node.remove();
+    };
+
+    li.append(title, btnCopy, btnSearch, btnDel);
+    return li;
+  }
+
+  async function refresh(){
+    try {
+      const r = await fetch('/proposals');
+      const j = await r.json();
+      list.innerHTML = '';
+      (j.proposals || []).forEach(p => list.appendChild(makeRow(p)));
+    } catch(e) {}
+  }
+
+  // Inicial
+  refresh();
+
+  // En tiempo real
+  if (window.socket) {
+    window.socket.on('proposal_added', ()=> refresh());
+    window.socket.on('proposal_removed', ({slug})=>{
+      const node = list.querySelector(`li[data-slug="${slug}"]`);
+      if (node) node.remove();
+    });
+  }
+})();
+</script>
 
 </body>
 </html>
