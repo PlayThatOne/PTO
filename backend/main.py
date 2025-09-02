@@ -12,7 +12,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import eventlet
 eventlet.monkey_patch()
 
-from flask import Flask, send_from_directory, jsonify, request
+from flask import Flask, send_from_directory, jsonify, request, Blueprint
 print(">> Flask importado")
 
 from backend.api.websockets import socketio
@@ -37,12 +37,109 @@ except Exception:
 PROJECT_ROOT = Path(__file__).resolve().parents[1]      # .../src
 PUBLIC_DIR   = PROJECT_ROOT / "frontend" / "public"
 print(f">> PUBLIC_DIR={PUBLIC_DIR}")
+# =========================
+# Proposals (suggested songs)
+# =========================
+import time, re
+from collections import defaultdict
+
+# Carpeta backend/proposals
+BASE_DIR = os.path.dirname(__file__)
+PROPOSALS_DIR = os.path.join(BASE_DIR, "proposals")
+os.makedirs(PROPOSALS_DIR, exist_ok=True)
+PROPOSALS_PATH = os.path.join(PROPOSALS_DIR, "proposals.json")
+
+_ip_last_ts = defaultdict(lambda: 0)
+
+def _slug_title(s: str) -> str:
+    s = (s or "").strip().lower()
+    s = re.sub(r"[’´`']", "", s)
+    s = re.sub(r"[^a-z0-9]+", "-", s)
+    s = re.sub(r"-+", "-", s).strip("-")
+    return s[:80] or "untitled"
+
+def _load_proposals():
+    if not os.path.exists(PROPOSALS_PATH):
+        return []
+    try:
+        with open(PROPOSALS_PATH, "r", encoding="utf-8") as f:
+            return json.load(f) or []
+    except Exception:
+        return []
+
+def _save_proposals(data):
+    with open(PROPOSALS_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+# --- Blueprint ---
+proposals_bp = Blueprint("proposals_bp", __name__)
+
+@proposals_bp.route("/proposals", methods=["POST"])
+def post_proposal():
+    payload = request.get_json(silent=True) or {}
+    title = (payload.get("title") or "").strip()
+    if not title:
+        return jsonify({"ok": False, "error": "empty_title"}), 400
+
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr) or "?"
+    now = time.time()
+    if now - _ip_last_ts[ip] < 30:  # 1 propuesta / 30s por IP
+        return jsonify({"ok": False, "error": "rate_limited"}), 429
+    _ip_last_ts[ip] = now
+
+    slug = _slug_title(title)
+    data = _load_proposals()
+    for p in data:
+        if p["slug"] == slug:
+            p["count"] += 1
+            p["last_ts"] = int(now)
+            _save_proposals(data)
+            try:
+                socketio.emit("proposal_added", p, broadcast=True)
+            except Exception:
+                pass
+            return jsonify({"ok": True, "dedup": True, "proposal": p})
+
+    item = {
+        "slug": slug,
+        "title": title,
+        "count": 1,
+        "first_ts": int(now),
+        "last_ts": int(now),
+    }
+    data.append(item)
+    _save_proposals(data)
+    try:
+        socketio.emit("proposal_added", item, broadcast=True)
+    except Exception:
+        pass
+    return jsonify({"ok": True, "proposal": item})
+
+@proposals_bp.route("/proposals", methods=["GET"])
+def get_proposals():
+    data = _load_proposals()
+    data.sort(key=lambda p: (-p["count"], p["first_ts"]))
+    return jsonify({"ok": True, "proposals": data})
+
+@proposals_bp.route("/proposals/<slug>", methods=["DELETE"])
+def delete_proposal(slug):
+    data = _load_proposals()
+    new_data = [p for p in data if p["slug"] != slug]
+    _save_proposals(new_data)
+    try:
+        socketio.emit("proposal_removed", {"slug": slug}, broadcast=True)
+    except Exception:
+        pass
+    return jsonify({"ok": True})
 
 def create_app():
     print(">> creando app")
 
     # Sirve estáticos desde la raíz del sitio
     app = Flask(__name__, static_folder=str(PUBLIC_DIR), static_url_path="")
+    
+    # Proposals API
+    app.register_blueprint(proposals_bp)
 
     # Log para confirmar que index existe
     idx = PUBLIC_DIR / "index.html"
