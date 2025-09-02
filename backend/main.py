@@ -5,6 +5,7 @@ import os
 import json
 import csv
 from pathlib import Path
+from backend.api.ingest import ingest_bp
 
 # Para imports tipo `backend.*`
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -255,6 +256,8 @@ def create_app():
 
     # Sirve estáticos desde la raíz del sitio
     app = Flask(__name__, static_folder=str(PUBLIC_DIR), static_url_path="")
+    
+    app.register_blueprint(ingest_bp)
     
     # Proposals API
     app.register_blueprint(proposals_bp)
