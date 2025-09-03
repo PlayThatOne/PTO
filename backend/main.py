@@ -568,42 +568,61 @@ def create_app():
     @app.route("/delete-songs", methods=["POST"])
     def delete_songs():
         try:
-            data = request.get_json()
-            ids = data.get("ids", [])
+            data = request.get_json(force=True) or {}
+            ids = set(data.get("ids") or [])
             if not ids:
-                return "No se recibieron canciones a borrar.", 400
+                return "No has pasado IDs", 400
 
-            catalog_csv = CATALOG_CSV
-            temp_file = Path(str(catalog_csv) + ".tmp")
+            # Rutas base
+            BASE_DIR = os.path.dirname(__file__)
+            CORE_DIR = os.path.join(BASE_DIR, "core")
+            catalog_path = os.path.join(CORE_DIR, "catalog_postgres.csv")
 
-            deleted = []
-            with open(catalog_csv, newline="", encoding="utf-8") as infile, open(temp_file, "w", newline="", encoding="utf-8") as outfile:
-                reader = csv.DictReader(infile, delimiter=";")
-                fieldnames = reader.fieldnames
-                writer = csv.DictWriter(outfile, fieldnames=fieldnames, delimiter=";")
+            # 1) Detectar separador y cabecera reales
+            with open(catalog_path, "r", encoding="utf-8", newline="") as f:
+                header_line = f.readline().strip()
+                delim = ";" if header_line.count(";") >= header_line.count(",") else ","
+                header = [h.strip() for h in header_line.split(delim)]
+                f.seek(0)
+                reader = csv.DictReader(f, delimiter=delim)
+                rows = []
+                for r in reader:
+                    # Quitar la clave None (campos extra) si aparece
+                    if None in r:
+                        r.pop(None, None)
+                    # Mantener las filas cuyo id NO esté en la lista a borrar
+                    if (r.get("id") or "").strip() not in ids:
+                        rows.append(r)
+
+            # 2) Reescribir CSV limpio (ignorando cualquier campo extra)
+            with open(catalog_path, "w", encoding="utf-8", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=header, delimiter=delim, extrasaction="ignore")
                 writer.writeheader()
-                for row in reader:
-                    if row["id"] in ids:
-                        deleted.append(row["id"])
-                        # borra archivos asociados tanto en Disk como en repo
-                        for path in [
-                            LYRICS_DIR / f"{row['id']}.txt",
-                            TABS_DIR   / f"TAB{row['id']}.txt",
-                            PROJECT_ROOT / "songs" / "lyrics" / f"{row['id']}.txt",
-                            PROJECT_ROOT / "songs" / "tabs" / f"TAB{row['id']}.txt",
-                        ]:
-                            try:
-                                if path.exists():
-                                    path.unlink()
-                            except Exception:
-                                pass
-                        continue
-                    writer.writerow(row)
+                for r in rows:
+                    writer.writerow(r)
 
-            os.replace(temp_file, catalog_csv)
-            return f"✅ Borradas: {', '.join(deleted)}"
+            # 3) Borrar archivos públicos TAB/Lyrics
+            FRONTEND_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend")
+            PUB_TABS_DIR = os.path.join(FRONTEND_DIR, "public", "songs", "tabs")
+            PUB_LYRICS_DIR = os.path.join(FRONTEND_DIR, "public", "songs", "lyrics")
+            removed_files = []
+            for sid in ids:
+                for p in (
+                    os.path.join(PUB_TABS_DIR,   f"TAB{sid}.txt"),
+                    os.path.join(PUB_LYRICS_DIR, f"{sid}.txt"),
+                ):
+                    try:
+                        if os.path.exists(p):
+                            os.remove(p)
+                            removed_files.append(os.path.basename(p))
+                    except Exception:
+                        pass
+
+            return f"OK. {len(ids)} canciones borradas. Archivos eliminados: {', '.join(removed_files) or '—'}"
+
         except Exception as e:
-            return f"❌ Error al borrar canciones: {str(e)}", 500
+            print(">> /delete-songs error:", e)
+            return f"Error al borrar canciones: {e}", 500
 
     @app.route("/get-song-status")
     def get_song_status():
