@@ -101,7 +101,7 @@
 
     async function loadTab(id) {
       try {
-        const response = await fetch(`/songs/tabs/TAB${id}.txt`);
+        const response = await fetch(`/songs/tabs/TAB${id}.txt?t=` + Date.now(), { cache: 'no-store' });
         const text = await response.text();
         tabContent.textContent = text;
         currentDisplayedId = id;
