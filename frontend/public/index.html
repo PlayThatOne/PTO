@@ -218,13 +218,6 @@
             align-items: flex-start; /* siempre arriba */
             overflow: hidden;
         }
-        .group-right img {
-            max-height: calc(2.5em + 80px); /* altura epígrafe + 1 canción */
-            max-width: 100%;
-            height: auto;
-            width: auto;
-            object-fit: contain;
-        }
         .group-right{
             flex: 0 0 25%;
             display:flex; justify-content:center; align-items:flex-start;
@@ -248,7 +241,7 @@
         .song { background-color: #fff !important; border: 1px solid #ccc; } /* visible */
 
         .song.selected { background-color: orange !important; }
-        .song.voted { background-color: green !important; }
+        .song.voted { background-color:#16a34a !important; }
         .song.played { background-color: pink !important; }
 
         #ranking-box { background: none !important; border: none !important; }
@@ -288,8 +281,6 @@
           text-overflow: ellipsis;
           box-sizing: border-box;
         }
-        .group-right img { max-height: calc(2.5em + 30px) !important; }
-
         /* Evitar que un grupo se divida entre columnas */
         .group {
             break-inside: avoid;
@@ -298,7 +289,7 @@
         }
         
         /* ==== Header de grupo a todo lo ancho ==== */
-.group { position: relative; }
+.group { position: relative; content-visibility:auto; contain-intrinsic-size:300px; }
 .group::before{
   content:"";
   position:absolute;
@@ -442,7 +433,9 @@
             const res = await fetch(CATALOG_URL);
             const catalog = await res.json();
             const container = document.getElementById('songs-container');
-            container.style.visibility = 'hidden';
+            
+  container.style.visibility = 'hidden';
+container.style.visibility = 'hidden';
 
             ORDER_KEY = document.getElementById('ord-select').value;
             container.innerHTML = '';
@@ -481,8 +474,9 @@
                 let inserted = false;
 
                 exts.forEach(ext => {
-                    const img = document.createElement("img");
-                    img.loading = "lazy";
+                    const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.loading = "lazy";
                     img.src = `/songs/images/${ORDER_KEY}/${safe}${ext}`;
                     img.alt = artist;
                     img.style.marginLeft = "10px";
@@ -518,10 +512,10 @@
                     leftContainer.appendChild(div);
                 });
                 container.appendChild(wrapper);
-                container.style.visibility = 'visible';
-                content-visibility:auto; contain-intrinsic-size: 300px; a .group
-            }
-        }
+}
+        
+  container.style.visibility = 'visible';
+}
 
         socket.on('update', (data) => {
             currentVotes = data.byDevice || {};
