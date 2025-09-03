@@ -113,6 +113,8 @@
         }
 
         .group h3 {
+            color:#1a1a1a;
+            letter-spacing:.2px;
             margin: 0 0 4px;
             font-size: 1.15em;
             color: #333;
@@ -120,32 +122,16 @@
             padding: 0;
         }
 
-        .song {
-            margin: 4px 0;
-            padding: 18px 28px;
-            font-size: 1.2em;
-            font-weight: 600;
-            text-align: left;
-            background-color: #f9f9f9;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-            transition: background-color 0.2s ease;
-            user-select: none;
-            cursor: pointer;
-        }
-
         .song:hover:not(.selected):not(.voted):not(.played) {
-           #background-color: #eee;
-            background-color: blue; <!--peter-->
+           background-color:#f4f6ff;
         }
 
-        .selected { background-color: orange; }
-        .voted { background-color: lightgreen; }
+        .selected{ background-color:#ffe8b3 !important; }
+        .voted{ background-color:#dff7d9 !important; }
         .played {
-            opacity: 0.4;
+            opacity: 0.45;
             pointer-events: none;
             text-decoration: line-through;
-            background-color: pink;<!--peter-->
         }
 
         body {
@@ -239,6 +225,17 @@
             width: auto;
             object-fit: contain;
         }
+        .group-right{
+            flex: 0 0 25%;
+            display:flex; justify-content:center; align-items:flex-start;
+            overflow:hidden;
+            min-height: 140px;         /* reserva espacio para que no baile el layout */
+            background: #f6f7f8;       /* esqueleto clarito */
+        }
+        .group-right img{
+             width:100%; height:100%; object-fit:contain;
+             aspect-ratio: 1 / 1;       /* mantiene la caja estable */
+        }
 
         #lyrics-wrapper,
         #lyrics-container,
@@ -251,7 +248,7 @@
         .song { background-color: #fff !important; border: 1px solid #ccc; } /* visible */
 
         .song.selected { background-color: orange !important; }
-        .song.voted { background-color: lightgreen !important; }
+        .song.voted { background-color: green !important; }
         .song.played { background-color: pink !important; }
 
         #ranking-box { background: none !important; border: none !important; }
@@ -271,17 +268,25 @@
 
         /* === Uniformidad VOT === */
         .group-left { min-width: 0; }
-        .song {
-            width: 100%;
-            max-width: 100%;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            box-sizing: border-box;
+        .song{
+          margin: 4px 0;
+          padding: 6px 10px;      /* ← menos margen interno */
+          font-size: 1.1em;
+          font-weight: 600;
+          text-align: left;
+          background-color: #fff;
+          border-radius: 6px;
+          border: 1px solid #ccc;
+          transition: background-color .2s ease;
+          user-select: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          min-height: 34px;       /* altura cómoda sin forzar 30px */
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          box-sizing: border-box;
         }
         .group-right img { max-height: calc(2.5em + 30px) !important; }
 
@@ -291,6 +296,23 @@
             -webkit-column-break-inside: avoid;
             -moz-column-break-inside: avoid;
         }
+        
+        /* ==== Header de grupo a todo lo ancho ==== */
+.group { position: relative; }
+.group::before{
+  content:"";
+  position:absolute;
+  left:0; right:0;
+  top:4px;              /* alinea con el <h3> */
+  height:2.4em;         /* altura de la banda */
+  background: #f1f5ff;  /* pastel suave, cámbialo si quieres */
+  border-radius: 8px;
+  z-index: 0;
+}
+.group h3,
+.group-right { position: relative; z-index: 1; }
+.group h3 { padding: 6px 10px; margin-bottom: 6px; }
+
     </style>
 </head>
 <body>
@@ -420,6 +442,7 @@
             const res = await fetch(CATALOG_URL);
             const catalog = await res.json();
             const container = document.getElementById('songs-container');
+            container.style.visibility = 'hidden';
 
             ORDER_KEY = document.getElementById('ord-select').value;
             container.innerHTML = '';
@@ -459,6 +482,7 @@
 
                 exts.forEach(ext => {
                     const img = document.createElement("img");
+                    img.loading = "lazy";
                     img.src = `/songs/images/${ORDER_KEY}/${safe}${ext}`;
                     img.alt = artist;
                     img.style.marginLeft = "10px";
@@ -494,6 +518,8 @@
                     leftContainer.appendChild(div);
                 });
                 container.appendChild(wrapper);
+                container.style.visibility = 'visible';
+                content-visibility:auto; contain-intrinsic-size: 300px; a .group
             }
         }
 
@@ -635,7 +661,7 @@
 <!-- Cajetín para propuestas -->
 <div id="suggest-box" style="margin:16px auto; padding:12px; border:1px solid #ccc; border-radius:10px; max-width:600px;">
   <label for="suggest-title" style="font-weight:bold;">Suggest a song</label>
-  <input id="suggest-title" type="text" placeholder="Type a title…" style="margin-left:10px;"/>
+  <input id="suggest-title" type="text" placeholder="Type title and artist" style="margin-left:10px;"/>
   <button id="suggest-send">Send</button>
   <span id="suggest-msg" style="margin-left:8px;"></span>
 </div>
