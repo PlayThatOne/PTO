@@ -314,3 +314,38 @@ def serve_tab_file(filename):
 @ingest_bp.route("/songs/lyrics/<path:filename>", methods=["GET"])
 def serve_lyrics_file(filename):
     return send_from_directory(LYRICS_DIR, filename)
+
+from flask import jsonify  # arriba ya tienes imports de Flask; si falta, déjalo aquí
+
+# ¿Existe el par TAB/lyrics para un ID?
+@ingest_bp.route("/api/ingest/debug_file/<id>", methods=["GET"])
+def ingest_debug_file_api(id):
+    tab_path_pub = os.path.join(PUB_TABS_DIR,   f"TAB{id}.txt")
+    lyr_path_pub = os.path.join(PUB_LYRICS_DIR, f"{id}.txt")
+    return jsonify({
+        "id": id,
+        "tabs_path": tab_path_pub,
+        "tabs_exists": os.path.exists(tab_path_pub),
+        "lyrics_path": lyr_path_pub,
+        "lyrics_exists": os.path.exists(lyr_path_pub),
+        "tabs_url": f"/songs/tabs/TAB{id}.txt",
+        "lyrics_url": f"/songs/lyrics/{id}.txt",
+    })
+
+# Lista rápida de archivos creados en la carpeta pública
+@ingest_bp.route("/api/ingest/list_files", methods=["GET"])
+def ingest_list_files_api():
+    try:
+        tabs = sorted([f for f in os.listdir(PUB_TABS_DIR) if f.endswith(".txt")])
+    except Exception:
+        tabs = []
+    try:
+        lyrics = sorted([f for f in os.listdir(PUB_LYRICS_DIR) if f.endswith(".txt")])
+    except Exception:
+        lyrics = []
+    return jsonify({
+        "tabs_dir": PUB_TABS_DIR,
+        "lyrics_dir": PUB_LYRICS_DIR,
+        "tabs_tail": tabs[-10:],      # últimas 10 por si hay muchas
+        "lyrics_tail": lyrics[-10:]
+    })
