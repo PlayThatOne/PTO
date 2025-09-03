@@ -610,47 +610,41 @@
       }
     });
 
-    $create.addEventListener('click', async ()=>{
-      if (!lastInfo) return;
+$create.addEventListener('click', async ()=>{
+  if (!lastInfo) {
+    alert("Primero pulsa Parse.");
+    return;
+  }
 
-      // Overrides manuales
-      lastInfo.id           = (f('det-id').value || lastInfo.id).trim();
-      lastInfo.title        = (f('det-title').value || lastInfo.title).trim();
-      lastInfo.artist       = (f('det-artist').value || lastInfo.artist).trim();
-      lastInfo.year         = (f('det-year').value || lastInfo.year).trim();
-      lastInfo.language     = (f('det-lang').value || lastInfo.language).trim();
-      lastInfo.genre        = (f('det-genre').value || lastInfo.genre).trim();
-      lastInfo.lyrics_guess = f('det-lyrics').value;
+  // 1) Tomamos los valores finales (permitiendo las ediciones manuales)
+  const id       = (f('det-id').value    || lastInfo.id).trim();
+  const title    = (f('det-title').value || lastInfo.title).trim();
+  const artist   = (f('det-artist').value|| lastInfo.artist).trim();
+  const year     = (f('det-year').value  || lastInfo.year).trim();
+  const language = (f('det-lang').value  || lastInfo.language).trim();
+  const genre    = (f('det-genre').value || lastInfo.genre).trim();
+  const lyrics   = f('det-lyrics').value || lastInfo.lyrics_guess || "";
+  const tabText  = ($paste.value || "").trim();
 
-      const pasted = ($paste.value||"").trim();
-      $create.disabled = true; $create.textContent = "Creating…";
-      try {
-        const r = await fetch('/songs/ingest/create', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ pasted, info: lastInfo })
-        });
-        const j = await r.json();
-        if (!j.ok) {
-          if (j.error === 'id_exists') {
-            alert("Ese ID ya existe: " + (j.id||""));
-          } else {
-            alert("Create error: " + (j.error||""));
-          }
-          return;
-        }
-        alert("Song created: " + j.id + (j.updated_catalog ? "\nCatalog updated." : "\nRecuerda pulsar 'Actualizar catálogo'."));
+  if (!id || !title || !tabText) {
+    alert("Faltan datos: asegúrate de tener ID, Title y la Tablatura pegada.");
+    return;
+  }
 
-        // Limpieza
-        $paste.value = "";
-        $panel.style.display = 'none';
-        $create.disabled = true; $create.textContent = "Create files & add to catalog";
-      } catch(e) {
-        alert("Create error.");
-      } finally {
-        $create.disabled = false; $create.textContent = "Create files & add to catalog";
-      }
-    });
+  // 2) Rellenamos el FORMULARIO PRINCIPAL que ya funciona
+  document.getElementById("id").value       = id;
+  document.getElementById("name").value     = title;
+  document.getElementById("artist").value   = artist;
+  document.getElementById("year").value     = year;
+  document.getElementById("language").value = language;
+  document.getElementById("genre").value    = genre;
+  document.getElementById("lyrics").value   = lyrics;
+  document.getElementById("tab").value      = tabText;
+
+  // 3) Usamos la MISMA ruta que el botón "Añadir canción"
+  await submitForm();  // esto ya maneja conflictos (409), overwrite, refresco de catálogo, etc.
+});
+
   })();
   </script>
 
