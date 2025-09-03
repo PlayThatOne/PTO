@@ -93,6 +93,7 @@
         body {
             font-family: 'Raleway', sans-serif;
         }
+        :root{ --voted-green:#22c55e; }
 
         #songs-container {
             column-count: 1;
@@ -140,7 +141,7 @@
         }
 
         .selected { background-color: orange; }
-        .voted { background-color: lightgreen; }
+        .voted { background-color: var(--voted-green) !important; }
         .played {
             opacity: 0.4;
             pointer-events: none;
@@ -214,8 +215,7 @@
             margin-left: auto;
         }
 
-        .group {
-            display: flex;
+        .group { position: relative; display: flex;
             justify-content: space-between;
             align-items: flex-start; /* fuerza la alineación superior */
             border: 1px solid #ccc;
@@ -251,7 +251,7 @@
         .song { background-color: #fff !important; border: 1px solid #ccc; } /* visible */
 
         .song.selected { background-color: orange !important; }
-        .song.voted { background-color: lightgreen !important; }
+        .song.voted { background-color: var(--voted-green) !important; }
         .song.played { background-color: pink !important; }
 
         #ranking-box { background: none !important; border: none !important; }
@@ -291,6 +291,20 @@
             -webkit-column-break-inside: avoid;
             -moz-column-break-inside: avoid;
         }
+    /* === Group header band across row === */
+        .group::before{
+            content:"";
+            position:absolute;
+            left:0; right:0;
+            top:4px;              /* align with <h3> */
+            height:2.4em;         /* band height */
+            background:#f1f5ff;   /* pastel */
+            border-radius:6px;
+            z-index:0;            /* sit behind content */
+            pointer-events:none;
+        }
+        .group-left, .group-right, .group h3{ position:relative; z-index:1; }
+        .group h3{ padding:6px 10px; }
     </style>
 </head>
 <body>
