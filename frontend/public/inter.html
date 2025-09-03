@@ -50,17 +50,9 @@
       padding: 1em;
       overflow-y: auto;
     }
-    /* +1 punto aproximado sobre el tamaño base */
-    #tab-content {
-      font-size: calc(1rem + 1pt);
-      line-height: 1.5;
-      font-family: Consolas, "Courier New", Menlo, Monaco, monospace;
-    }
-    /* Más espacio para el TAB: RAN ~3 canciones visibles y Proposals a la vista */
     #rani-section {
-      height: 22vh; /* antes 30vh */
+      height: 22vh;
       overflow-y: auto;
-      overflow-x: hidden;
       padding: 1em;
       background-color: #f5f5f5;
       border-top: 2px solid #ccc;
@@ -77,9 +69,28 @@
     .now-playing {
       background-color: lightgreen;
     }
+
+/* === Autoscroll controls (top-right) === */
+#autoscroll{ position:fixed; top:10px; right:10px; z-index:1000; display:flex; flex-direction:column; gap:6px; }
+#autoscroll button{ padding:6px 8px; border:1px solid #ccc; background:#fff; cursor:pointer; border-radius:8px; min-width:44px; }
+#autoscroll .play{ font-weight:700; }
+#autoscroll .active{ outline:2px solid #2e7d32; }
+
+/* === TAB content readability === */
+#tab-content{ font-size: calc(1rem + 1pt); line-height:1.5; font-family: Consolas, "Courier New", Menlo, Monaco, monospace; white-space: pre-wrap; }
+
   </style>
 </head>
 <body>
+
+  <div id="autoscroll" aria-label="Auto-scroll">
+    <button id="as-play" class="play" title="Play/Stop">▶</button>
+    <button class="as-speed" data-speed="1">1</button>
+    <button class="as-speed" data-speed="2">2</button>
+    <button class="as-speed" data-speed="3">3</button>
+    <button class="as-speed" data-speed="4">4</button>
+    <button class="as-speed" data-speed="5">5</button>
+  </div>
 
   <div id="top-bar">
     <button id="title-button">Esperando canción...</button>
@@ -238,11 +249,79 @@
 
     init();
   </script>
-  
-<!-- Panel de propuestas -->
+
+  <script>
+(function(){
+  const list = document.getElementById('proposals-list');
+
+  function makeRow(p){
+    const li = document.createElement('li');
+    li.dataset.slug = p.slug;
+    li.style.display = 'flex';
+    li.style.gap = '8px';
+    li.style.alignItems = 'center';
+
+    const title = document.createElement('span');
+    title.textContent = `${p.title}  (x${p.count})`;
+    title.style.flex = '1';
+
+    const btnCopy = document.createElement('button');
+    btnCopy.textContent = '⧉ Copy';
+    btnCopy.onclick = async ()=> {
+      try { await navigator.clipboard.writeText(p.title); } catch {}
+      btnCopy.textContent = '✓ Copied';
+      setTimeout(()=>btnCopy.textContent='⧉ Copy', 900);
+    };
+
+    const btnSearch = document.createElement('button');
+    btnSearch.textContent = 'Search';
+    btnSearch.onclick = ()=> {
+      const q = encodeURIComponent(p.title);
+      window.open(`https://www.google.com/search?q=${q}+chords`, '_blank');
+      window.open(`https://www.google.com/search?q=${q}+lyrics`, '_blank');
+      window.open(`https://www.ultimate-guitar.com/search.php?search_type=title&value=${q}`, '_blank');
+      window.open(`https://www.youtube.com/results?search_query=${q}+chords`, '_blank');
+    };
+
+    const btnDel = document.createElement('button');
+    btnDel.textContent = 'Dismiss';
+    btnDel.onclick = async ()=> {
+      await fetch(`/proposals/${p.slug}`, { method:'DELETE' });
+      const node = list.querySelector(`li[data-slug="${p.slug}"]`);
+      if (node) node.remove();
+    };
+
+    li.append(title, btnCopy, btnSearch, btnDel);
+    return li;
+  }
+
+  async function refresh(){
+    try {
+      const r = await fetch('/proposals');
+      const j = await r.json();
+      list.innerHTML = '';
+      (j.proposals || []).forEach(p => list.appendChild(makeRow(p)));
+    } catch(e) {}
+  }
+
+  // Inicial
+  refresh();
+
+  // En tiempo real
+  if (window.socket) {
+    window.socket.on('proposal_added', ()=> refresh());
+    window.socket.on('proposal_removed', ({slug})=>{
+      const node = list.querySelector(`li[data-slug="${slug}"]`);
+      if (node) node.remove();
+    });
+  }
+})();
+</script>
+
+<!-- Proposals panel -->
 <section id="proposals-panel" style="margin-top:16px; border-top:1px solid #ddd; padding-top:12px;">
- <h3 style="margin:0 0 8px 0;">Proposals</h3>
- <ul id="proposals-list" style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px;"></ul>
+  <h3 style="margin:0 0 8px 0;">Proposals</h3>
+  <ul id="proposals-list" style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px;"></ul>
 </section>
 
 <script>
@@ -310,6 +389,46 @@
       if (node) node.remove();
     });
   }
+})();
+</script>
+
+<script>
+// === Auto-scroll logic ===
+(function(){
+  const container = document.getElementById('tab-section');
+  if(!container) return;
+  const btnPlay = document.getElementById('as-play');
+  const speedBtns = Array.from(document.querySelectorAll('.as-speed'));
+  let playing = false, speed = 2, raf = null, lastT = 0;
+  const speedPx = {1:20, 2:35, 3:50, 4:70, 5:90}; // pixels per second
+
+  function step(t){
+    if(!playing) return;
+    if(!lastT) lastT = t;
+    const dt = (t - lastT) / 1000;
+    lastT = t;
+    container.scrollTop += (speedPx[speed] || 35) * dt;
+    const maxScroll = container.scrollHeight - container.clientHeight - 1;
+    if (container.scrollTop >= maxScroll) { toggle(false); return; }
+    raf = requestAnimationFrame(step);
+  }
+  function toggle(next){
+    playing = (typeof next === 'boolean') ? next : !playing;
+    btnPlay.textContent = playing ? '⏸' : '▶';
+    if (playing){ lastT = 0; cancelAnimationFrame(raf); raf = requestAnimationFrame(step); }
+    else { cancelAnimationFrame(raf); raf = null; }
+  }
+  btnPlay.addEventListener('click', ()=> toggle());
+
+  speedBtns.forEach(b=>{
+    b.addEventListener('click', ()=>{
+      speed = Number(b.dataset.speed) || 2;
+      speedBtns.forEach(x=> x.classList.toggle('active', x===b));
+    });
+  });
+  // default selection
+  const def = speedBtns.find(b=>b.dataset.speed==='2');
+  if (def) def.classList.add('active');
 })();
 </script>
 
