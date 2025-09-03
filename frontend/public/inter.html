@@ -70,15 +70,27 @@
       background-color: lightgreen;
     }
 
-/* === Autoscroll controls (top-right) === */
-#autoscroll{ position:fixed; top:10px; right:10px; z-index:1000; display:flex; flex-direction:column; gap:6px; }
-#autoscroll button{ padding:6px 8px; border:1px solid #ccc; background:#fff; cursor:pointer; border-radius:8px; min-width:44px; }
-#autoscroll .play{ font-weight:700; }
-#autoscroll .active{ outline:2px solid #2e7d32; }
+    /* TAB readability (tablet compact) */
+    #tab-content {
+      font-size: 1rem;         /* base default */
+      line-height: 1.15;       /* compacto para que quepan líneas */
+      font-family: Consolas, "Courier New", Menlo, Monaco, monospace;
+      white-space: pre-wrap;
+    }
 
-/* === TAB content readability === */
-#tab-content{ font-size: calc(1rem + 1pt); line-height:1.5; font-family: Consolas, "Courier New", Menlo, Monaco, monospace; white-space: pre-wrap; }
-
+    /* Autoscroll controls */
+    #autoscroll{
+      position:fixed;
+      top:10px; right:10px;
+      z-index: 9000;
+      display:flex; flex-direction:column; gap:6px;
+    }
+    #autoscroll button{
+      padding:6px 8px; border:1px solid #ccc; background:#fff;
+      cursor:pointer; border-radius:8px; min-width:44px;
+    }
+    #autoscroll .play{ font-weight:700; }
+    #autoscroll .active{ outline:2px solid #2e7d32; }
   </style>
 </head>
 <body>
@@ -400,14 +412,14 @@
   const btnPlay = document.getElementById('as-play');
   const speedBtns = Array.from(document.querySelectorAll('.as-speed'));
   let playing = false, speed = 2, raf = null, lastT = 0;
-  const speedPx = {1:20, 2:35, 3:50, 4:70, 5:90}; // pixels per second
+  const speedPx = {1:6, 2:10, 3:16, 4:24, 5:34}; // pixels per second
 
   function step(t){
     if(!playing) return;
     if(!lastT) lastT = t;
     const dt = (t - lastT) / 1000;
     lastT = t;
-    container.scrollTop += (speedPx[speed] || 35) * dt;
+    container.scrollTop += (speedPx[speed] || 10) * dt;
     const maxScroll = container.scrollHeight - container.clientHeight - 1;
     if (container.scrollTop >= maxScroll) { toggle(false); return; }
     raf = requestAnimationFrame(step);
