@@ -836,5 +836,43 @@ $create.addEventListener('click', async ()=>{
 })();
 </script>
 
+<script>
+(function () {
+  // Si ya hay valores, no tocamos nada
+  const titleEl = document.querySelector('#title');
+  const artistEl = document.querySelector('#artist');
+  const pasteEl = document.querySelector('#paste-area'); // ajusta si tu id difiere
+  const lyricsGuessEl = document.querySelector('#lyrics_guess'); // ajusta si tu id difiere
+
+  if (!titleEl || !artistEl || !pasteEl) return;
+
+  // Hook tras tu parse actual (pegar después de tu parse o llamarlo en oninput)
+  function fallbackTwoLineHeuristic() {
+    const raw = (pasteEl.value || '').trim();
+    if (!raw) return;
+
+    // Si ya hay título o artista, no hacemos nada
+    if ((titleEl.value || '').trim() || (artistEl.value || '').trim()) return;
+
+    const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    if (lines.length >= 2) {
+      // Caso clásico: Título en línea 1, Artista en línea 2
+      titleEl.value = lines[0];
+      artistEl.value = lines[1];
+
+      // Si no hay más texto útil como letra, dejamos lyrics_guess vacío
+      const remaining = lines.slice(2).join('\n').trim();
+      if (lyricsGuessEl) {
+        lyricsGuessEl.value = remaining || '';
+      }
+    }
+  }
+
+  // Ejecuta una vez al cargar (tras tu parse) y también en cambios del textarea
+  document.addEventListener('DOMContentLoaded', fallbackTwoLineHeuristic);
+  pasteEl.addEventListener('input', fallbackTwoLineHeuristic);
+})();
+</script>
+
 </body>
 </html>
