@@ -405,44 +405,57 @@
 </script>
 
 <script>
-// === Auto-scroll logic ===
 (function(){
   const container = document.getElementById('tab-section');
   if(!container) return;
-  const btnPlay = document.getElementById('as-play');
+
+  const btnPlay   = document.getElementById('as-play');
   const speedBtns = Array.from(document.querySelectorAll('.as-speed'));
-  let playing = false, speed = 2, raf = null, lastT = 0;
-  const speedPx = {1:6, 2:10, 3:16, 4:24, 5:34}; // pixels per second
+
+  // Acumulador 'acc' para no perder fracciones de píxel (iOS)
+  let playing = false, speed = 2, raf = null, lastT = 0, acc = 0;
+
+  // Velocidades (px/seg). 5 = tu “bien” actual
+  const speedPx = {1:12, 2:18, 3:24, 4:30, 5:34};
 
   function step(t){
     if(!playing) return;
     if(!lastT) lastT = t;
     const dt = (t - lastT) / 1000;
     lastT = t;
-    container.scrollTop += (speedPx[speed] || 10) * dt;
-    const maxScroll = container.scrollHeight - container.clientHeight - 1;
-    if (container.scrollTop >= maxScroll) { toggle(false); return; }
+
+    // ← acumulamos fracciones hasta tener al menos 1px que aplicar
+    acc += (speedPx[speed] || 10) * dt;
+    if (acc >= 1) {
+      const d = Math.floor(acc);
+      container.scrollTop += d;
+      acc -= d;
+    }
+
+    const max = container.scrollHeight - container.clientHeight - 1;
+    if (container.scrollTop >= max) { toggle(false); return; }
     raf = requestAnimationFrame(step);
   }
+
   function toggle(next){
     playing = (typeof next === 'boolean') ? next : !playing;
     btnPlay.textContent = playing ? '⏸' : '▶';
-    if (playing){ lastT = 0; cancelAnimationFrame(raf); raf = requestAnimationFrame(step); }
+    if (playing) { lastT = 0; acc = 0; cancelAnimationFrame(raf); raf = requestAnimationFrame(step); }
     else { cancelAnimationFrame(raf); raf = null; }
   }
-  btnPlay.addEventListener('click', ()=> toggle());
 
+  btnPlay.addEventListener('click', ()=> toggle());
   speedBtns.forEach(b=>{
     b.addEventListener('click', ()=>{
       speed = Number(b.dataset.speed) || 2;
       speedBtns.forEach(x=> x.classList.toggle('active', x===b));
     });
   });
-  // default selection
   const def = speedBtns.find(b=>b.dataset.speed==='2');
   if (def) def.classList.add('active');
 })();
 </script>
+
 
 </body>
 </html>
