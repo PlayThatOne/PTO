@@ -6,19 +6,40 @@
   <style>
     body { font-family: 'Segoe UI', sans-serif; margin: 2em; max-width: 860px; background: #f5f7fa; color: #333; }
     h1, h2 { color: #2c3e50; }
-    input, textarea, button, select { width: 100%; margin-bottom: 0.75em; padding: 0.6em; font-size: 1em; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+    input, textarea, button, select { width: 100%; margin-bottom: 0.6em; padding: 0.6em; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
     button { background: #3498db; color: white; border: none; cursor: pointer; transition: background 0.3s; }
     button:hover { background: #2980b9; }
     label { font-weight: 600; margin-top: 1em; display: block; }
-    #form-container { background: white; border: 1px solid #ddd; padding: 2em; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    #form-container { background: white; border: 1px solid #ddd; padding: 1.2em; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
     .side-by-side { display: flex; gap: 1em; }
     .side-by-side>div { flex: 1; }
     #song-list li { display: flex; align-items: center; margin-bottom: 4px; gap: 0.5em; }
     #song-list input[type="checkbox"] { flex: 0 0 40px; margin-right: 0.5em; }
     #song-list span { flex: 1; white-space: normal; overflow: visible; text-overflow: clip; }
   </style>
+  <style>
+    /* Admin lock overlay */
+    #admin-lock{ position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:99999; }
+    #admin-lock .panel{ background:#fff; padding:18px 16px; border-radius:12px; width:min(420px,90vw); box-shadow:0 10px 30px rgba(0,0,0,.25); }
+    #admin-lock h2{ margin:0 0 10px; font-size:1.1rem; }
+    #admin-lock input{ width:100%; padding:10px; font-size:1rem; box-sizing:border-box; }
+    #admin-lock button{ margin-top:10px; padding:10px 12px; font-size:1rem; }
+  </style>
 </head>
 <body>
+
+<div id="admin-lock" aria-modal="true" role="dialog">
+  <div class="panel">
+    <h2>Admin access</h2>
+    <p style="margin:0 0 8px; color:#444;">Enter password to use this panel.</p>
+    <input id="admin-pass" type="password" placeholder="Password" autocomplete="current-password"/>
+    <div style="display:flex; gap:8px; margin-top:10px;">
+      <button id="admin-login">Unlock</button>
+      <button id="admin-cancel" style="background:#eee;">Cancel</button>
+    </div>
+    <div id="admin-msg" style="margin-top:8px; color:#b00020; min-height:1em;"></div>
+  </div>
+</div>
 
   <h1>Panel de Control</h1>
 
@@ -53,14 +74,23 @@
     <label for="tempo">Tempo (BPM)</label>
     <input type="number" id="tempo" min="1">
 
+    <label for="lyrics">Letra</label>
+    <textarea id="lyrics" rows="10"></textarea>
+
+    <label for="tab">Tablatura</label>
+    <textarea id="tab" rows="10"></textarea>
+
+    <label for="enabled">Mostrar (Y/N)</label>
+    <input type="text" id="enabled" value="Y">
+
     <div class="side-by-side">
       <div>
-        <label for="lyrics">Letra</label>
-        <textarea id="lyrics" rows="12"></textarea>
+        <label for="image">Imagen (opcional)</label>
+        <input type="file" id="image" accept="image/*">
       </div>
       <div>
-        <label for="tab">Tablatura</label>
-        <textarea id="tab" rows="12"></textarea>
+        <label for="flag">Bandera (opcional)</label>
+        <input type="file" id="flag" accept="image/*">
       </div>
     </div>
 
@@ -90,47 +120,46 @@
         </div>
       <div style="margin-top:10px;">
         <strong>Lyrics guess:</strong>
-        <textarea id="det-lyrics" rows="10" style="width:100%; font-family: monospace; background:#f9f9f9; padding:8px; border:1px solid #eee; border-radius:6px;"></textarea>
+        <textarea id="det-lyrics" rows="10" style="width:100%; font-family: monospace; padding:8px; border:1px solid #eee; border-radius:6px;"></textarea>
       </div>
-        <div style="margin-top:10px;">
-          <strong>Quick links:</strong>
-          <a id="lk-lyrics-google" target="_blank">Google lyrics</a> ·
-          <a id="lk-letras" target="_blank">letras.com</a> ·
-          <a id="lk-chords-google" target="_blank">Google chords</a> ·
-          <a id="lk-youtube" target="_blank">YouTube chords</a>
-        </div>
       </div>
+
+      <details style="margin-top:10px;">
+        <summary>¿Cómo formateo el texto pegado?</summary>
+        <ul>
+          <li>Primera línea: <code>Artist — Title</code> o <code>Title — Artist (Year)</code></li>
+          <li>Usa espacios en blanco para separar versos y estrofas</li>
+          <li>Si hay acordes por encima, los reconoceremos</li>
+        </ul>
+      </details>
     </section>
-    <!-- Fin Paste & Add -->
 
+    <hr>
+
+    <h2>Catálogo (CSV)</h2>
     <div class="side-by-side">
-      <button type="button" onclick="editCatalog()">Editar datos</button>
-      <button type="button" onclick="downloadCatalog()">Descargar catálogo</button>
+      <div>
+        <label for="catalog-file">Subir CSV del catálogo</label>
+        <input type="file" id="catalog-file" accept=".csv">
+        <button type="button" onclick="uploadCatalog()">Subir CSV</button>
+      </div>
+      <div>
+        <button type="button" onclick="refreshCatalog()">Regenerar catalog.json</button>
+        <button type="button" onclick="downloadCatalog()">Descargar catalog.csv</button>
+      </div>
     </div>
 
-    <div class="side-by-side">
-      <input type="file" id="catalog-file" name="catalog" accept=".csv" required>
-      <button type="button" onclick="uploadCatalog()">Subir catálogo</button>
-    </div>
-
-    <button type="button" onclick="refreshCatalog()">Actualizar catálogo</button>
-
-    <div class="side-by-side">
-      <input type="file" id="logo-file" name="logo" accept=".png,.jpg,.jpeg" required>
-      <button type="button" onclick="uploadLogo()">Actualizar logo</button>
-    </div>
-    
-    <h2>Corrección rápida (un campo)</h2>
+    <h2>Actualizar un campo (uno solo)</h2>
     <div class="side-by-side">
       <div>
         <label for="fix-id">ID</label>
-        <input id="fix-id" type="text" placeholder="id exacto...">
+        <input id="fix-id" type="text">
       </div>
       <div>
         <label for="fix-field">Campo</label>
         <select id="fix-field">
+          <option value="title">title</option>
           <option value="artist">artist</option>
-          <option value="name">name</option>
           <option value="year">year</option>
           <option value="language">language</option>
           <option value="genre">genre</option>
@@ -166,60 +195,136 @@
     <button type="button" onclick="loadMissingArtists()">🔄 Actualizar lista de artistas sin foto</button>
 
     <h2>Artistas sin foto</h2>
-    <div id="missing-artists-section" style="border: 1px solid #ccc; padding: 1em; margin-top: 1em;"></div>
+    <section id="no-photo"></section>
+
   </div>
 
+  <h2 style="margin-top:32px;">Híbrido (campos obtenibles por detección)</h2>
+  <div class="side-by-side">
+    <div>
+      <label for="hybrid-title">Título</label>
+      <input id="hybrid-title" type="text">
+    </div>
+    <div>
+      <label for="hybrid-artist">Artista</label>
+      <input id="hybrid-artist" type="text">
+    </div>
+    <div>
+      <label for="hybrid-year">Año</label>
+      <input id="hybrid-year" type="text">
+    </div>
+    <div>
+      <label for="hybrid-language">Idioma</label>
+      <input id="hybrid-language" type="text">
+    </div>
+  </div>
+  <div style="margin-top:8px;">
+    <button type="button" onclick="detectHybridFields()">Detectar campos</button>
+  </div>
+
+  <h2 style="margin-top:32px;">Encontrar/Arreglar un campo</h2>
+  <div class="side-by-side">
+    <div>
+      <label for="find-id">ID</label>
+      <input id="find-id" type="text">
+    </div>
+    <div>
+      <label for="find-field">Campo</label>
+      <select id="find-field">
+        <option value="title">title</option>
+        <option value="artist">artist</option>
+        <option value="year">year</option>
+        <option value="language">language</option>
+        <option value="genre">genre</option>
+        <option value="duration">duration</option>
+        <option value="mood">mood</option>
+        <option value="key">key</option>
+        <option value="tempo">tempo</option>
+        <option value="enabled">enabled</option>
+      </select>
+    </div>
+  </div>
+  <label for="fix2-value">Nuevo valor</label>
+  <input id="fix2-value" type="text" placeholder="nuevo valor... (Y/N para enabled)">
+  <button type="button" onclick="updateOneField2()">Actualizar campo</button>
+
   <script>
-    // ===== Añadir canción (con conflicto/overwrite) =====
     async function submitForm() {
-      const data = {
-        id: document.getElementById("id").value.trim(),
-        name: document.getElementById("name").value.trim(),
-        artist: document.getElementById("artist").value.trim(),
-        year: document.getElementById("year").value.trim(),
-        language: document.getElementById("language").value.trim(),
-        genre: document.getElementById("genre").value.trim(),
-        duration: document.getElementById("duration").value.trim(),
-        mood: document.getElementById("mood").value.trim(),
-        key: document.getElementById("key").value.trim(),
-        tempo: document.getElementById("tempo").value.trim(),
-        lyrics: document.getElementById("lyrics").value,
-        tab: document.getElementById("tab").value,
-      };
-
-      if (!data.id) {
-        alert("El campo ID es obligatorio.");
-        return;
-      }
-
       try {
-        // 1º intento (sin overwrite)
-        let res = await fetch("/add-song", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        });
+        const id = document.getElementById("id").value.trim();
+        const data = {
+          id,
+          title: document.getElementById("name").value,
+          artist: document.getElementById("artist").value,
+          year: document.getElementById("year").value,
+          language: document.getElementById("language").value,
+          genre: document.getElementById("genre").value,
+          duration: document.getElementById("duration").value,
+          mood: document.getElementById("mood").value,
+          key: document.getElementById("key").value,
+          tempo: document.getElementById("tempo").value,
+          lyrics: document.getElementById("lyrics").value,
+          tab: document.getElementById("tab").value,
+          enabled: document.getElementById("enabled").value || "Y"
+        };
 
-        if (res.status === 409) {
-          // Conflicto: ya existe ese ID. Pedimos confirmación.
-          const info = await res.json();
-          const ex = info.existing || {};
-          const ok = confirm(
-            `⚠️ Ya existe el ID "${info.id}":\n` +
-            `Título: ${ex.name || "(sin título)"}\n` +
-            `Artista: ${ex.artist || "(sin artista)"}\n\n` +
-            `¿Quieres SOBRESCRIBIR esta canción (datos, letra y tablatura)?`
-          );
-          if (!ok) {
-            alert("Operación cancelada. No se hicieron cambios.");
-            return;
+        if (!id) {
+          alert("Debes introducir un ID.");
+          return;
+        }
+
+        // Imagen y bandera (opcional)
+        const imageInput = document.getElementById("image");
+        const flagInput = document.getElementById("flag");
+        let data2 = null;
+        if (imageInput.files[0] || flagInput.files[0]) {
+          data2 = {
+            image: null,
+            flag: null
+          };
+
+          if (imageInput.files[0]) {
+            const imgForm = new FormData();
+            imgForm.append("image", imageInput.files[0]);
+            const imgRes = await fetch(`/upload-image/${encodeURIComponent(data.artist)}`, {
+              method: "POST",
+              body: imgForm
+            });
+            const imgMsg = await imgRes.text();
+            if (!imgRes.ok) {
+              alert("❌ " + imgMsg);
+              return;
+            }
+            data2.image = imgMsg; // Ruta guardada
           }
 
-          // 2º intento con overwrite=true
-          const data2 = { ...data, overwrite: true };
-          res = await fetch("/add-song", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+          if (flagInput.files[0]) {
+            const flagForm = new FormData();
+            flagForm.append("flag", flagInput.files[0]);
+            const flagRes = await fetch(`/upload-flag/${encodeURIComponent(data.language)}`, {
+              method: "POST",
+              body: flagForm
+            });
+            const flagMsg = await flagRes.text();
+            if (!flagRes.ok) {
+              alert("❌ " + flagMsg);
+              return;
+            }
+            data2.flag = flagMsg; // Ruta guardada
+          }
+        }
+
+        // Enviar la canción
+        const res = await fetch('/add-song', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        if (data2) {
+          await fetch(`/link-media/${encodeURIComponent(id)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data2),
           });
         }
@@ -250,171 +355,151 @@
         return;
       }
       try {
-        const fd = new FormData();
-        fd.append("catalog", fileInput.files[0]);
-        const res = await fetch("/upload-catalog", { method: "POST", body: fd });
-        const text = await res.text();
-        alert(text);
-        if (res.ok) await refreshCatalog();
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        const res = await fetch('/upload-catalog', { method: 'POST', body: formData });
+        alert(await res.text());
+        await refreshCatalog();
       } catch (e) {
         console.error(e);
-        alert("❌ Error al subir catálogo");
+        alert("❌ Error subiendo CSV");
       }
     }
 
-    async function refreshCatalog() {
+    async function refreshCatalog(){
       try {
-        const res = await fetch("/refresh-catalog", { method: "POST" });
-        const text = await res.text();
-        alert(text);
-        // Bust de caché y refresco UI
-        await fetch("/catalog/catalog.json?t=" + Date.now());
-        await loadSongList();
+        const res = await fetch('/refresh-catalog', { method: 'POST' });
+        alert(await res.text());
       } catch (e) {
         console.error(e);
-        alert("❌ Error al actualizar catálogo");
+        alert("❌ Error regenerando catalog.json");
       }
     }
 
-    function downloadCatalog() {
-      window.location.href = "/download-catalog";
+    async function downloadCatalog(){
+      window.location.href = '/download-catalog';
     }
 
-    function editCatalog() {
-      window.open("/edit-catalog", "_blank");
+    async function detectHybridFields(){
+      try{
+        const r = await fetch('/hybrid/detect', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+          title: document.getElementById('hybrid-title').value,
+          artist: document.getElementById('hybrid-artist').value,
+          year: document.getElementById('hybrid-year').value,
+          language: document.getElementById('hybrid-language').value,
+        })});
+        const j = await r.json();
+        alert(JSON.stringify(j, null, 2));
+      }catch(e){ alert('❌ Error detectando'); }
     }
 
-    async function uploadLogo() {
-      const fileInput = document.getElementById("logo-file");
-      if (!fileInput.files.length) {
-        alert("Por favor selecciona un archivo de imagen.");
-        return;
-      }
-      try {
-        const fd = new FormData();
-        fd.append("logo", fileInput.files[0]);
-        const res = await fetch("/upload-logo", { method: "POST", body: fd });
-        const msg = await res.text();
-        alert(msg);
-      } catch (e) {
-        console.error(e);
-        alert("❌ Error al subir logo");
-      }
+    async function updateOneField(){
+      try{
+        const res = await fetch('/update-one', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: document.getElementById('fix-id').value, field: document.getElementById('fix-field').value, value: document.getElementById('fix-value').value }) });
+        alert(await res.text());
+      }catch(e){ alert('❌ Error actualizando'); }
     }
 
-    function goBack() {
-      window.location.href = "/inter.html";
+    async function updateOneField2(){
+      try{
+        const res = await fetch('/update-one', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: document.getElementById('find-id').value, field: document.getElementById('find-field').value, value: document.getElementById('fix2-value').value }) });
+        alert(await res.text());
+      }catch(e){ alert('❌ Error actualizando'); }
     }
 
-    // ===== Gestión de canciones (listar / ordenar / borrar / enabled) =====
-    let fullSongList = [];
+    function goBack(){ window.location.href = 'inter.html'; }
 
-    async function loadSongList() {
-      try {
-        const res = await fetch("/get-song-status");
-        const data = await res.json();
-        fullSongList = Array.isArray(data) ? data : [];
-        renderSongs(fullSongList);
-      } catch (e) {
-        console.error(e);
-        alert("❌ Error cargando lista de canciones");
-      }
-    }
+    async function loadSongList(){
+      try{
+        const res = await fetch('/catalog/catalog.json');
+        const songs = await res.json();
+        const ul = document.getElementById('song-list');
+        ul.innerHTML = '';
 
-    function renderSongs(songs) {
-      const ul = document.getElementById("song-list");
-      ul.innerHTML = "";
-
-      const header = document.createElement("li");
-      header.innerHTML = `
+        const header = document.createElement("li");
+        header.innerHTML = `
         <span style="flex: 0 0 40px;">Borrar</span>
         <span style="flex: 0 0 60px;">Mostrar</span>
         <span style="flex: 1; font-weight: bold;">Canción</span>`;
-      ul.appendChild(header);
+        ul.appendChild(header);
 
-      songs.forEach(song => {
-        const li = document.createElement("li");
+        songs.forEach(song => {
+          const li = document.createElement("li");
 
-        const cbDelete = document.createElement("input");
-        cbDelete.type = "checkbox";
-        cbDelete.className = "delete-checkbox";
-        cbDelete.value = song.id;
+          const cbDelete = document.createElement("input");
+          cbDelete.type = "checkbox";
+          cbDelete.className = "delete-checkbox";
+          cbDelete.value = song.id;
 
-        const cbEnabled = document.createElement("input");
-        cbEnabled.type = "checkbox";
-        cbEnabled.className = "enabled-checkbox";
-        cbEnabled.value = song.id;
-        cbEnabled.checked = (song.enabled || "Y") === "Y";
+          const cbEnabled = document.createElement("input");
+          cbEnabled.type = "checkbox";
+          cbEnabled.className = "enabled-checkbox";
+          cbEnabled.value = song.id;
+          cbEnabled.checked = (song.enabled || "Y") === "Y";
 
-        const label = document.createElement("span");
-        label.textContent = `${song.title} — ${song.artist}`;
+          const label = document.createElement("span");
+          label.textContent = `${song.title} — ${song.artist}`;
 
-        li.appendChild(cbDelete);
-        li.appendChild(cbEnabled);
-        li.appendChild(label);
-        ul.appendChild(li);
-      });
-    }
-
-    function sortSongs() {
-      const type = document.getElementById("sort-songs").value;
-      const sorted = [...fullSongList].sort((a, b) => (a[type] || "").localeCompare(b[type] || ""));
-      renderSongs(sorted);
-    }
-
-    async function deleteSelectedSongs() {
-      const boxes = document.querySelectorAll("#song-list .delete-checkbox:checked");
-      if (!boxes.length) {
-        alert("No has seleccionado ninguna canción para borrar.");
-        return;
-      }
-      if (!confirm("¿Seguro que quieres borrar las canciones seleccionadas?")) return;
-
-      const ids = Array.from(boxes).map(cb => cb.value);
-      try {
-        const res = await fetch("/delete-songs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids })
+          li.appendChild(cbDelete);
+          li.appendChild(cbEnabled);
+          li.appendChild(label);
+          ul.appendChild(li);
         });
-        const msg = await res.text();
-        alert(msg);
-        await loadSongList();
-        await refreshCatalog();
+
+      }catch(e){ alert('❌ Error cargando lista'); }
+    }
+
+    function sortSongs(){
+      try{
+        const ul = document.getElementById('song-list');
+        const items = Array.from(ul.querySelectorAll('li'));
+        const header = items.shift();
+        const by = document.getElementById('sort-songs').value;
+        items.sort((a,b)=>{
+          const A = a.querySelector('span').textContent.toLowerCase();
+          const B = b.querySelector('span').textContent.toLowerCase();
+          return A.localeCompare(B);
+        });
+        ul.innerHTML = '';
+        ul.appendChild(header);
+        items.forEach(li=> ul.appendChild(li));
+      }catch(e){}
+    }
+
+    async function updateEnabledSongs(){
+      try{
+        const enabled = Array.from(document.querySelectorAll('.enabled-checkbox'))
+          .filter(cb=> cb.checked).map(cb=> cb.value);
+        const res = await fetch('/songs/enabled', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ enabled }) });
+        alert(await res.text());
+      }catch(e){ alert('❌ Error actualizando'); }
+    }
+
+    async function deleteSelectedSongs(){
+      try{
+        const ids = Array.from(document.querySelectorAll('.delete-checkbox'))
+          .filter(cb=> cb.checked).map(cb=> cb.value);
+        if (!ids.length) { alert('Selecciona alguna canción'); return; }
+        if (!confirm('¿Seguro que quieres borrarlas?')) return;
+        const res = await fetch('/songs/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids }) });
+        alert(await res.text());
+        if (res.ok) {
+          await refreshCatalog();
+          await loadSongList();
+        }
       } catch (e) {
         console.error(e);
-        alert("❌ Error al borrar canciones");
+        alert("❌ Error actualizando");
       }
     }
 
-    async function updateEnabledSongs() {
-      const checkboxes = document.querySelectorAll(".enabled-checkbox");
-      const updates = {};
-      checkboxes.forEach(cb => { updates[cb.value] = cb.checked; });
-
-      try {
-        const res = await fetch("/update-enabled", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ enabled: updates })
-        });
-        const msg = await res.text();
-        alert(msg);
-        await refreshCatalog();
-      } catch (e) {
-        console.error(e);
-        alert("❌ Error al actualizar estado");
-      }
-    }
-
-    // ===== Fotos de artistas faltantes =====
-    async function loadMissingArtists() {
-      try {
-        const res = await fetch("/missing-artist-photos");
+    async function loadMissingArtists(){
+      try{
+        const res = await fetch('/authors/missing');
         const data = await res.json();
-        const section = document.getElementById("missing-artists-section");
-        section.innerHTML = "";
-        (data || []).forEach(artist => {
+        const section = document.getElementById('no-photo');
+        section.innerHTML = '';
+        (data.authors||[]).forEach(artist => {
           const button = document.createElement("div");
           button.textContent = artist;
           button.setAttribute("data-artist", artist);
@@ -446,78 +531,26 @@
         });
       } catch (e) {
         console.error(e);
-        alert("❌ Error cargando artistas sin foto");
+        alert('❌ Error cargando artistas sin foto');
       }
     }
 
-    async function uploadArtistPhoto(artist, file, button) {
-      const fd = new FormData();
-      fd.append("photo", file);
-      try {
-        const res = await fetch(`/upload-artist-photo/${encodeURIComponent(artist)}`, { method: "POST", body: fd });
-        const msg = await res.text();
-        if (res.ok) {
-          button.style.background = "#d4edda";
-          button.textContent = `✔ ${artist}`;
-          setTimeout(() => button.remove(), 1000);
-        } else {
-          button.style.background = "#f8d7da";
-          alert(`Error: ${msg}`);
-        }
-      } catch (e) {
-        console.error(e);
-        alert("❌ Error subiendo imagen");
-      }
+    async function uploadArtistPhoto(artist, file, buttonNode){
+      try{
+        const form = new FormData();
+        form.append('image', file);
+        const r = await fetch(`/upload-image/${encodeURIComponent(artist)}`, { method:'POST', body: form });
+        const t = await r.text(); if(!r.ok) throw new Error(t);
+        buttonNode.textContent = `${artist} ✓`;
+      }catch(e){ alert('❌ Error subiendo imagen'); }
     }
 
-    // ===== Campos híbridos (datalists) =====
-    async function loadHybridFields() {
-      try {
-        const res = await fetch("/catalog/fields.json");
-        const data = await res.json();
-        const campos = ["artist", "year", "language", "genre", "mood", "key"];
-        for (const campo of campos) {
-          const datalist = document.getElementById(`${campo}-list`);
-          if (!datalist) continue;
-          datalist.innerHTML = "";
-          (data[campo] || []).forEach(valor => {
-            const opt = document.createElement("option");
-            opt.value = valor;
-            datalist.appendChild(opt);
-          });
-        }
-      } catch (e) {
-        console.error("Error cargando campos híbridos:", e);
-      }
-    }
-
-    // === Corrección rápida (JS) ===
-    async function updateOneField() {
-      const id    = document.getElementById("fix-id").value.trim();
-      const field = document.getElementById("fix-field").value;
-      const value = document.getElementById("fix-value").value;
-
-      if (!id) {
-        alert("Escribe el ID.");
-        return;
-      }
-
-      try {
-        const res = await fetch("/update-song", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, field, value })
-        });
-        const msg = await res.text();
-        alert(msg);
-        if (res.ok) {
-          await refreshCatalog();
-          await loadSongList();
-        }
-      } catch (e) {
-        console.error(e);
-        alert("❌ Error actualizando");
-      }
+    async function loadHybridFields(){
+      try{
+        const r = await fetch('/hybrid/fields');
+        const j = await r.json();
+        console.log('Hybrid fields available:', j); // info
+      }catch(e){}
     }
 
     // Carga inicial
@@ -543,61 +576,56 @@
     const $parse  = document.getElementById('btn-parse');
     const $fetch  = document.getElementById('btn-fetch');
     const $create = document.getElementById('btn-create');
-    const $panel  = document.getElementById('parse-result');
+    const $result = document.getElementById('parse-result');
 
-    const f = (id)=>document.getElementById(id);
+    const f = (id)=> document.getElementById(id);
+
+    function parsePasted(text){
+      let id='', title='', artist='', year='', language='English', genre='';
+      let lyrics_guess='';
+
+      const lines = (text||'').split(/\r?\n/).map(s=>s.trim());
+      const first = lines.shift()||'';
+
+      // 1) Intentar "Artist — Title (Year)"
+      let m = first.match(/^(.*?)\s*[—-]\s*(.*?)(?:\s*\((\d{4})\))?$/);
+      if(m){ artist=m[1]; title=m[2]; if(m[3]) year=m[3]; }
+      else{
+        // 2) Intentar "Title — Artist (Year)"
+        m = first.match(/^(.*?)\s*[—-]\s*(.*?)(?:\s*\((\d{4})\))?$/);
+        if(m){ title=m[1]; artist=m[2]; if(m[3]) year=m[3]; }
+      }
+
+      // ID provisional
+      id = (artist+"_"+title).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+
+      lyrics_guess = lines.join('\n');
+
+      return {id,title,artist,year,language,genre,lyrics_guess};
+    }
 
     let lastInfo = null;
 
-    $parse.addEventListener('click', async ()=>{
-      const pasted = ($paste.value||"").trim();
-      if (!pasted) { $paste.focus(); return; }
-      $parse.disabled = true; $parse.textContent = "Parsing…";
-      try {
-        const r = await fetch('/songs/ingest/parse', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ pasted })
-        });
-        const j = await r.json();
-        if (!j.ok) throw new Error(j.error||'parse_failed');
-        lastInfo = j.info;
-
-        f('det-id').value     = j.info.id || '';
-        f('det-title').value  = j.info.title || '';
-        f('det-artist').value = j.info.artist || '';
-        f('det-year').value   = j.info.year || '';
-        f('det-lang').value   = j.info.language || '';
-        f('det-genre').value  = j.info.genre || '';
-        f('det-lyrics').value = j.info.lyrics_guess || '';
-
-        // Enlaces
-        f('lk-lyrics-google').href = j.links.lyrics_google;
-        f('lk-letras').href        = j.links.lyrics_letras;
-        f('lk-chords-google').href = j.links.chords_google;
-        f('lk-youtube').href       = j.links.youtube;
-
-        $panel.style.display = 'block';
-        $create.disabled = false;
-      } catch(e) {
-        alert("Parse error. Revisa el pegado o inténtalo de nuevo.");
-      } finally {
-        $parse.disabled = false; $parse.textContent = "Parse";
-      }
+    $parse.addEventListener('click', ()=>{
+      const info = parsePasted($paste.value||'');
+      lastInfo = info;
+      $result.style.display = 'block';
+      f('det-id').value = info.id;
+      f('det-title').value = info.title;
+      f('det-artist').value = info.artist;
+      f('det-year').value = info.year;
+      f('det-lang').value = info.language;
+      f('det-genre').value = info.genre;
+      f('det-lyrics').value = info.lyrics_guess;
+      $create.disabled = false;
     });
 
     $fetch.addEventListener('click', async ()=>{
-      const title  = (f('det-title').value || '').trim();
-      const artist = (f('det-artist').value || '').trim();
-      if (!title) { alert("Pon un Title primero"); return; }
-
-      $fetch.disabled = true; $fetch.textContent = "Fetching…";
-      try {
-        const r = await fetch('/songs/ingest/fetch_meta', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ title, artist })
-        });
+      $fetch.disabled = true; $fetch.textContent = "Fetching...";
+      try{
+        const r = await fetch('/metadata/fetch', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+          title: f('det-title').value||'', artist: f('det-artist').value||''
+        })});
         const j = await r.json();
         if (!j.ok) throw new Error(j.error||'fetch_failed');
         if (j.year)  f('det-year').value  = j.year;
@@ -631,18 +659,18 @@ $create.addEventListener('click', async ()=>{
     return;
   }
 
-  // 2) Rellenamos el FORMULARIO PRINCIPAL que ya funciona
-  document.getElementById("id").value       = id;
-  document.getElementById("name").value     = title;
-  document.getElementById("artist").value   = artist;
-  document.getElementById("year").value     = year;
-  document.getElementById("language").value = language;
-  document.getElementById("genre").value    = genre;
-  document.getElementById("lyrics").value   = lyrics;
-  document.getElementById("tab").value      = tabText;
+  try{
+    // 2) Creamos ficheros de TAB y Lyrics
+    const r1 = await fetch('/create-files', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id, title, artist, year, language, genre, lyrics, tab: tabText })});
+    const j1 = await r1.json();
+    if(!j1.ok) throw new Error(j1.error||'files_error');
 
-  // 3) Usamos la MISMA ruta que el botón "Añadir canción"
-  await submitForm();  // esto ya maneja conflictos (409), overwrite, refresco de catálogo, etc.
+    // 3) Añadimos al catálogo
+    const r2 = await fetch('/add-song', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id, title, artist, year, language, genre, lyrics, enabled:'Y' })});
+    const t2 = await r2.text(); if(!r2.ok) throw new Error(t2);
+
+    alert('✓ Añadida y ficheros creados');
+  }catch(e){ alert('❌ '+(e.message||e)); }
 });
 
   })();
@@ -655,6 +683,30 @@ $create.addEventListener('click', async ()=>{
   <datalist id="genre-list"></datalist>
   <datalist id="mood-list"></datalist>
   <datalist id="key-list"></datalist>
+
+  <script>
+  (function(){
+    // Admin overlay logic
+    let isAdmin = false;
+    function showLock(){ document.getElementById('admin-lock').style.display='flex'; document.getElementById('admin-pass').focus(); }
+    function hideLock(){ document.getElementById('admin-lock').style.display='none'; }
+    async function refreshAuth(){
+      try{ const r=await fetch('/auth/status', {credentials:'same-origin'}); const j=await r.json(); isAdmin=!!j.is_admin; if(!isAdmin) showLock(); else hideLock(); }
+      catch(e){ showLock(); }
+    }
+    async function doLogin(){
+      const p=(document.getElementById('admin-pass').value||'').trim(); const msg=document.getElementById('admin-msg'); msg.textContent='';
+      try{ const r=await fetch('/auth/login',{method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({password:p}), credentials:'same-origin'});
+        if(r.ok){ msg.style.color='#0a0'; msg.textContent='Unlocked'; document.getElementById('admin-pass').value=''; await refreshAuth(); }
+        else{ msg.style.color='#b00020'; msg.textContent='Wrong password'; }
+      }catch{ msg.style.color='#b00020'; msg.textContent='Network error'; }
+    }
+    document.addEventListener('DOMContentLoaded', refreshAuth);
+    document.getElementById('admin-login').addEventListener('click', doLogin);
+    document.getElementById('admin-cancel').addEventListener('click', hideLock);
+    document.getElementById('admin-pass').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin(); });
+  })();
+  </script>
 
 </body>
 </html>
