@@ -704,7 +704,6 @@ $create.addEventListener('click', async ()=>{
     }
     document.addEventListener('DOMContentLoaded', refreshAuth);
         showLock();
-        refreshAuth();
     document.getElementById('admin-login').addEventListener('click', doLogin);
     document.getElementById('admin-cancel').addEventListener('click', hideLock);
     document.getElementById('admin-pass').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin(); });
