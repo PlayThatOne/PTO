@@ -13,7 +13,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import eventlet
 eventlet.monkey_patch()
 
-from flask import Flask, send_from_directory, jsonify, request, Blueprint
+from flask import Flask, send_from_directory, jsonify, request, Blueprint, session
 print(">> Flask importado")
 
 from backend.api.websockets import socketio
@@ -132,9 +132,9 @@ def delete_proposal(slug):
     except Exception:
         pass
     return jsonify({"ok": True})
-    
+
 # =========================
-# Fetch metadata (year, genre) from public APIs
+# Fetch metadata helpers
 # =========================
 import urllib.parse, urllib.request
 
@@ -161,36 +161,62 @@ def _http_json(url, headers=None, timeout=7):
         return json.loads(resp.read().decode("utf-8", errors="ignore"))
 
 def _score_match(qt, qa, it_title, it_artist):
-    # coincidencias sencillas sin librerías extra
-    t = it_title.lower()
-    a = (it_artist or "").lower()
-    s = 0
+    t = it_title.lower(); a = (it_artist or "").lower(); s = 0
     if qt in t: s += 3
     if qa and qa in a: s += 2
-    # bonus por igualdad (muy aproximado)
     if t == qt: s += 2
     if qa and a == qa: s += 1
     return s
 
+
 def create_app():
     print(">> creando app")
 
-    # Sirve estáticos desde la raíz del sitio
     app = Flask(__name__, static_folder=str(PUBLIC_DIR), static_url_path="")
-    
+    # ====== sesiones para admin ======
+    app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-change-me")
+    app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
+
+    # Decorador admin
+    def admin_required(fn):
+        from functools import wraps
+        @wraps(fn)
+        def _wrap(*args, **kwargs):
+            if not session.get('is_admin'):
+                return jsonify({'error': 'auth_required'}), 401
+            return fn(*args, **kwargs)
+        return _wrap
+
+    # Endpoints de auth
+    ADMIN_PASS = os.getenv('PTO_ADMIN_PASS', 'pto1234')
+
+    @app.post('/auth/login')
+    def auth_login():
+        data = request.get_json(silent=True) or {}
+        if (data.get('password') or '') != ADMIN_PASS:
+            return jsonify({'ok': False}), 401
+        session['is_admin'] = True
+        return jsonify({'ok': True})
+
+    @app.get('/auth/status')
+    def auth_status():
+        return jsonify({'is_admin': bool(session.get('is_admin'))})
+
+    @app.post('/auth/logout')
+    @admin_required
+    def auth_logout():
+        session.clear()
+        return jsonify({'ok': True})
+
     app.register_blueprint(ingest_bp)
-    
-    # Proposals API
     app.register_blueprint(proposals_bp)
 
-    # Log para confirmar que index existe
     idx = PUBLIC_DIR / "index.html"
     print(f">> index.html existe? {idx.exists()}  ({idx})")
 
     socketio.init_app(app, cors_allowed_origins="*")
     print(">> socketio registrado")
 
-    # --- Asegurar CSV de catálogo en el Disk ---
     CORE_DIR = Path(__file__).resolve().parent / "core"  # backend/core (Disk)
     CATALOG_CSV = CORE_DIR / "catalog_postgres.csv"
     if not CATALOG_CSV.exists():
@@ -201,12 +227,12 @@ def create_app():
     else:
         print(f">> encontrado {CATALOG_CSV}")
 
-    # --- Carpetas PERSISTENTES en el Disk para letras/tabs/imagenes ---
     LYRICS_DIR     = CORE_DIR / "songs" / "lyrics"
     TABS_DIR       = CORE_DIR / "songs" / "tabs"
     IMAGES_DIR     = CORE_DIR / "images"
     ARTIST_IMG_DIR = IMAGES_DIR / "artist"
-    for d in [LYRICS_DIR, TABS_DIR, IMAGES_DIR, ARTIST_IMG_DIR]:
+    FLAGS_DIR      = IMAGES_DIR / "flags"
+    for d in [LYRICS_DIR, TABS_DIR, IMAGES_DIR, ARTIST_IMG_DIR, FLAGS_DIR]:
         d.mkdir(parents=True, exist_ok=True)
     print(f">> LYRICS_DIR={LYRICS_DIR}")
     print(f">> TABS_DIR={TABS_DIR}")
@@ -228,65 +254,17 @@ def create_app():
     @app.route("/addsong.html")
     def addsong():
         return send_from_directory(str(PUBLIC_DIR), "addsong.html")
-        
-    @app.route("/update-song", methods=["POST"])
-    def update_song():
-        """Actualizar UN campo de una canción por ID (sin tocar letra/tab)."""
-        try:
-            data = request.get_json(force=True)
-            song_id = (data.get("id") or "").strip()
-            field   = (data.get("field") or "").strip()
-            value   = data.get("value")
-            # normaliza strings
-            if isinstance(value, str):
-                value = value.strip()
-
-            allowed = ["name","artist","year","language","genre","duration","mood","key","tempo","enabled"]
-            if not song_id or field not in allowed:
-                return "Parámetros inválidos (id/field). Campos válidos: " + ", ".join(allowed), 400
-
-            # leer CSV actual
-            with open(CATALOG_CSV, newline="", encoding="utf-8") as f:
-                reader = csv.DictReader(f, delimiter=";")
-                fieldnames = reader.fieldnames or (["id"] + allowed)
-                rows = list(reader)
-
-            # aplicar cambio
-            found = False
-            for row in rows:
-                if (row.get("id") or "").strip() == song_id:
-                    row[field] = "" if value is None else str(value)
-                    found = True
-                    break
-
-            if not found:
-                return f"ID no encontrado: {song_id}", 404
-
-            # escribir CSV
-            tmp = Path(str(CATALOG_CSV) + ".tmp")
-            with open(tmp, "w", newline="", encoding="utf-8") as f:
-                w = csv.DictWriter(f, fieldnames=fieldnames, delimiter=";")
-                w.writeheader()
-                for r in rows:
-                    w.writerow(r)
-
-            os.replace(tmp, CATALOG_CSV)
-            return f"✅ Actualizado '{field}' de '{song_id}'.", 200
-
-        except Exception as e:
-            return f"❌ Error al actualizar: {str(e)}", 500
 
     @app.route("/ran.html")
     def ran():
         return send_from_directory(str(PUBLIC_DIR), "ran.html")
 
-    # ===== RUTAS SONGS (primero Disk, luego repo como fallback) =====
+    # ===== SONGS (Disk primero, luego repo) =====
     @app.route("/songs/lyrics/<filename>")
     def serve_lyrics(filename):
         p = LYRICS_DIR / filename
         if p.exists():
             return send_from_directory(str(LYRICS_DIR), filename)
-        # fallback a repo
         repo_dir = PROJECT_ROOT / "songs" / "lyrics"
         return send_from_directory(str(repo_dir), filename)
 
@@ -295,7 +273,6 @@ def create_app():
         p = TABS_DIR / filename
         if p.exists():
             return send_from_directory(str(TABS_DIR), filename)
-        # fallback a repo
         repo_dir = PROJECT_ROOT / "songs" / "tabs"
         return send_from_directory(str(repo_dir), filename)
 
@@ -304,7 +281,6 @@ def create_app():
         p = IMAGES_DIR / filename
         if p.exists():
             return send_from_directory(str(IMAGES_DIR), filename)
-        # fallback a repo
         repo_dir = PROJECT_ROOT / "songs" / "images"
         return send_from_directory(str(repo_dir), filename)
 
@@ -319,7 +295,8 @@ def create_app():
         counts = count_votes(raw_votes)
         return jsonify(counts)
 
-    @app.route("/votes/reset")
+    @app.route("/votes/reset", methods=["GET","POST"])  # protegido
+    @admin_required
     def reset_votes():
         from backend.services.vote_logic import save_states
         save_votes({})
@@ -336,8 +313,9 @@ def create_app():
     def favicon():
         return "", 204
 
-    # ======= AÑADIR/ACTUALIZAR CANCIÓN con detección de conflicto =======
-    @app.route("/add-song", methods=["POST"])
+    # ===== AÑADIR/ACTUALIZAR CANCIÓN =====
+    @app.route("/add-song", methods=["POST"])  # protegido
+    @admin_required
     def add_song():
         try:
             data = request.get_json(force=True)
@@ -346,8 +324,6 @@ def create_app():
                 return "ID de canción no especificado", 400
 
             catalog_csv = CATALOG_CSV
-
-            # ¿Existe ya este ID?
             existing = None
             if catalog_csv.exists():
                 with open(catalog_csv, newline="", encoding="utf-8") as f:
@@ -357,32 +333,23 @@ def create_app():
                             existing = row
                             break
 
-            # Si existe y NO viene 'overwrite', devolvemos conflicto con info (409)
             if existing and not data.get("overwrite"):
                 return jsonify({
                     "status": "conflict",
                     "message": f"Ya existe el ID {song_id}",
                     "id": song_id,
-                    "existing": {
-                        "id": existing.get("id", ""),
-                        "name": existing.get("name", ""),
-                        "artist": existing.get("artist", "")
-                    }
+                    "existing": {"id": existing.get("id", ""), "name": existing.get("name", ""), "artist": existing.get("artist", "")}
                 }), 409
 
             fieldnames = ["id","name","artist","year","language","genre","duration","mood","key","tempo","enabled"]
 
             if existing and data.get("overwrite"):
-                # Sobrescribir: reescribir el CSV sustituyendo la fila del ID
                 with open(catalog_csv, newline="", encoding="utf-8") as f:
                     rows = list(csv.DictReader(f, delimiter=";"))
-
-                # Fila nueva (si algún campo viene vacío, lo dejamos vacío)
                 newrow = {k: (data.get(k) if data.get(k) not in [None, ""] else "") for k in fieldnames}
                 newrow["id"] = song_id
                 if not newrow.get("enabled"):
                     newrow["enabled"] = (existing.get("enabled") or "Y")
-
                 with open(catalog_csv, "w", newline="", encoding="utf-8") as f:
                     w = csv.DictWriter(f, fieldnames=fieldnames, delimiter=";")
                     w.writeheader()
@@ -391,33 +358,19 @@ def create_app():
                             w.writerow({k: newrow.get(k, "") for k in fieldnames})
                         else:
                             w.writerow({k: row.get(k, "") for k in fieldnames})
-
                 status_msg = "✅ Canción actualizada (sobrescrita)."
-
             elif not existing:
-                # Añadir nueva fila
                 with open(catalog_csv, "a", newline="", encoding="utf-8") as csvfile:
                     writer = csv.writer(csvfile, delimiter=";")
                     writer.writerow([
-                        data.get("id", ""),
-                        data.get("name", ""),
-                        data.get("artist", ""),
-                        data.get("year", ""),
-                        data.get("language", ""),
-                        data.get("genre", ""),
-                        data.get("duration", ""),
-                        data.get("mood", ""),
-                        data.get("key", ""),
-                        data.get("tempo", ""),
-                        "Y",
+                        data.get("id", ""), data.get("name", ""), data.get("artist", ""), data.get("year", ""),
+                        data.get("language", ""), data.get("genre", ""), data.get("duration", ""), data.get("mood", ""),
+                        data.get("key", ""), data.get("tempo", ""), "Y",
                     ])
                 status_msg = "✅ Canción añadida correctamente."
-
             else:
-                # Caso teórico (existing sin overwrite ya devolvió 409)
                 status_msg = "ℹ️ Nada que hacer."
 
-            # Guardar letra/tab SOLO si añadimos o si se sobrescribe
             if not existing or data.get("overwrite"):
                 if "lyrics" in data:
                     (LYRICS_DIR / f"{song_id}.txt").parent.mkdir(parents=True, exist_ok=True)
@@ -429,12 +382,12 @@ def create_app():
                         f.write((data.get("tab") or "").strip())
 
             return status_msg, 200
-
         except Exception as e:
             return f"❌ Error al añadir/actualizar canción: {str(e)}", 500
 
     # ===== VOTING / SOCKETS =====
-    @app.route("/votes/now_playing", methods=["POST"])
+    @app.route("/votes/now_playing", methods=["POST"])  # protegido
+    @admin_required
     def set_now_playing():
         from backend.services.vote_logic import save_states
         data = request.get_json()
@@ -455,41 +408,31 @@ def create_app():
         for dev, song_id in votes.items():
             by_device.setdefault(song_id, []).append(dev)
 
-        socketio.emit("update", {
-            "counts": counts,
-            "byDevice": by_device,
-            "states": states
-        })
+        socketio.emit("update", {"counts": counts, "byDevice": by_device, "states": states})
         return jsonify({"status": "ok", "now_playing": new_id})
 
     @socketio.on("vote")
     def handle_vote(data):
-        device = data.get("deviceId")
-        song = data.get("songId")
+        device = data.get("deviceId"); song = data.get("songId")
         if not device or not song:
             return
-        votes = load_votes()
-        votes[device] = song
-        save_votes(votes)
-
+        votes = load_votes(); votes[device] = song; save_votes(votes)
         counts = count_votes(votes)
         by_device = {}
         for dev, song_id in votes.items():
             by_device.setdefault(song_id, []).append(dev)
         states = load_states()
-
         print(">> update:", {"counts": counts, "byDevice": by_device, "states": states})
         socketio.emit("update", {"counts": counts, "byDevice": by_device, "states": states})
 
     @socketio.on("update_request")
     def handle_update_request():
-        votes = load_votes()
-        counts = count_votes(votes)
-        states = load_states()
+        votes = load_votes(); counts = count_votes(votes); states = load_states()
         socketio.emit("update", {"counts": counts, "byDevice": votes, "states": states})
 
     # ===== CATALOGO =====
-    @app.route("/refresh-catalog", methods=["POST"])
+    @app.route("/refresh-catalog", methods=["POST"])  # protegido
+    @admin_required
     def refresh_catalog():
         import subprocess
         try:
@@ -506,39 +449,40 @@ def create_app():
     def missing_artist_photos():
         try:
             catalog_path = PUBLIC_DIR / "catalog" / "catalog.json"
-
             with open(catalog_path, "r", encoding="utf-8") as f:
                 catalog = json.load(f)
-
             missing = []
             for song in catalog:
                 artist = (song.get("artist") or "").strip()
                 if not artist:
                     continue
-                # Busca primero en Disk, luego en repo
                 has_image = any((ARTIST_IMG_DIR / f"{artist}{ext}").exists() for ext in [".jpg", ".jpeg", ".png"]) \
-                            or any((PROJECT_ROOT / "songs" / "images" / "artist" / f"{artist}{ext}").exists()
-                                   for ext in [".jpg", ".jpeg", ".png"])
+                            or any((PROJECT_ROOT / "songs" / "images" / "artist" / f"{artist}{ext}").exists() for ext in [".jpg", ".jpeg", ".png"])
                 if not has_image and artist not in missing:
                     missing.append(artist)
-
             return jsonify(missing)
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+    # Alias para addsong
+    @app.route("/authors/missing")
+    def authors_missing_alias():
+        return missing_artist_photos()
+
     @app.route("/edit-catalog")
+    @admin_required
     def edit_catalog():
         from flask import send_file
         catalog_csv = CATALOG_CSV
         return send_file(str(catalog_csv), as_attachment=False)
 
-    @app.route("/upload-catalog", methods=["POST"])
+    @app.route("/upload-catalog", methods=["POST"])  # protegido + acepta 'file' o 'catalog'
+    @admin_required
     def upload_catalog():
         try:
-            file = request.files["catalog"]
+            file = request.files.get("catalog") or request.files.get("file")
             if not file:
                 return "No se recibió ningún archivo", 400
-            # (Ahora mismo: sobrescribe archivo. Si quieres fusión, te paso el bloque cuando me digas)
             save_path = CATALOG_CSV
             file.save(str(save_path))
             return "✅ Catálogo actualizado correctamente."
@@ -546,12 +490,14 @@ def create_app():
             return f"❌ Error al subir catálogo: {str(e)}", 500
 
     @app.route("/download-catalog")
+    @admin_required
     def download_catalog():
         from flask import send_file
         catalog_csv = CATALOG_CSV
         return send_file(str(catalog_csv), as_attachment=True)
 
     @app.route("/list-songs")
+    @admin_required
     def list_songs():
         try:
             catalog_csv = CATALOG_CSV
@@ -565,7 +511,8 @@ def create_app():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    @app.route("/delete-songs", methods=["POST"])
+    @app.route("/delete-songs", methods=["POST"])  # protegido
+    @admin_required
     def delete_songs():
         try:
             data = request.get_json(force=True) or {}
@@ -573,12 +520,7 @@ def create_app():
             if not ids:
                 return "No has pasado IDs", 400
 
-            # Rutas base
-            BASE_DIR = os.path.dirname(__file__)
-            CORE_DIR = os.path.join(BASE_DIR, "core")
-            catalog_path = os.path.join(CORE_DIR, "catalog_postgres.csv")
-
-            # 1) Detectar separador y cabecera reales
+            catalog_path = CATALOG_CSV
             with open(catalog_path, "r", encoding="utf-8", newline="") as f:
                 header_line = f.readline().strip()
                 delim = ";" if header_line.count(";") >= header_line.count(",") else ","
@@ -587,21 +529,18 @@ def create_app():
                 reader = csv.DictReader(f, delimiter=delim)
                 rows = []
                 for r in reader:
-                    # Quitar la clave None (campos extra) si aparece
                     if None in r:
                         r.pop(None, None)
-                    # Mantener las filas cuyo id NO esté en la lista a borrar
                     if (r.get("id") or "").strip() not in ids:
                         rows.append(r)
 
-            # 2) Reescribir CSV limpio (ignorando cualquier campo extra)
             with open(catalog_path, "w", encoding="utf-8", newline="") as f:
                 writer = csv.DictWriter(f, fieldnames=header, delimiter=delim, extrasaction="ignore")
                 writer.writeheader()
                 for r in rows:
                     writer.writerow(r)
 
-            # 3) Borrar archivos públicos TAB/Lyrics
+            # Borrar archivos en public (fallback)
             FRONTEND_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend")
             PUB_TABS_DIR = os.path.join(FRONTEND_DIR, "public", "songs", "tabs")
             PUB_LYRICS_DIR = os.path.join(FRONTEND_DIR, "public", "songs", "lyrics")
@@ -619,10 +558,14 @@ def create_app():
                         pass
 
             return f"OK. {len(ids)} canciones borradas. Archivos eliminados: {', '.join(removed_files) or '—'}"
-
         except Exception as e:
             print(">> /delete-songs error:", e)
             return f"Error al borrar canciones: {e}", 500
+
+    # Aliases para addsong.html
+    @app.route('/songs/delete', methods=['POST'])
+    def delete_songs_alias():
+        return delete_songs()
 
     @app.route("/get-song-status")
     def get_song_status():
@@ -642,7 +585,8 @@ def create_app():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    @app.route("/update-enabled", methods=["POST"])
+    @app.route("/update-enabled", methods=["POST"])  # protegido
+    @admin_required
     def update_enabled_status():
         try:
             data = request.get_json()
@@ -668,12 +612,15 @@ def create_app():
         except Exception as e:
             return f"❌ Error al actualizar estado: {str(e)}", 500
 
+    @app.route('/songs/enabled', methods=['POST'])
+    def update_enabled_alias():
+        return update_enabled_status()
+
     @app.route("/catalog/fields.json")
     def catalog_fields():
         try:
             from collections import defaultdict
             csv_path = CATALOG_CSV
-
             fields = ["artist", "year", "language", "genre", "mood", "key"]
             values = defaultdict(set)
             with open(csv_path, newline="", encoding="utf-8") as f:
@@ -688,7 +635,8 @@ def create_app():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    @app.route("/upload-logo", methods=["POST"])
+    @app.route("/upload-logo", methods=["POST"])  # protegido
+    @admin_required
     def upload_logo():
         try:
             file = request.files.get("logo")
@@ -703,18 +651,16 @@ def create_app():
         except Exception as e:
             return f"❌ Error al subir logo: {str(e)}", 500
 
-    @app.route("/upload-artist-photo/<artist>", methods=["POST"])
+    @app.route("/upload-artist-photo/<artist>", methods=["POST"])  # protegido
+    @admin_required
     def upload_artist_photo(artist):
         try:
-            if "photo" not in request.files:
+            file = request.files.get("photo") or request.files.get("image")
+            if not file:
                 return "No se recibió ningún archivo", 400
-            file = request.files["photo"]
-            if file.filename == "":
-                return "Nombre de archivo vacío", 400
             ext = os.path.splitext(file.filename)[1].lower()
             if ext not in [".jpg", ".jpeg", ".png", ".bmp"]:
                 return "Formato no permitido", 400
-
             safe_artist = artist.strip().replace("/", "_").replace("\\", "_")
             save_path = ARTIST_IMG_DIR / (safe_artist + ext)
             ARTIST_IMG_DIR.mkdir(parents=True, exist_ok=True)
@@ -722,5 +668,35 @@ def create_app():
             return "✅ Imagen subida correctamente."
         except Exception as e:
             return f"❌ Error al subir imagen: {str(e)}", 500
+
+    # Aliases sencillos usados por addsong.html
+    @app.post('/upload-image/<artist>')
+    def upload_image_alias(artist):
+        return upload_artist_photo(artist)
+
+    @app.post('/upload-flag/<language>')
+    @admin_required
+    def upload_flag(language):
+        try:
+            file = request.files.get('flag') or request.files.get('image')
+            if not file:
+                return "No se recibió ningún archivo", 400
+            ext = os.path.splitext(file.filename)[1].lower()
+            if ext not in [".png", ".jpg", ".jpeg", ".bmp"]:
+                return "Formato no permitido", 400
+            safe = language.strip().replace("/", "_").replace("\\", "_")
+            save_path = FLAGS_DIR / (safe + ext)
+            FLAGS_DIR.mkdir(parents=True, exist_ok=True)
+            file.save(str(save_path))
+            return str(save_path)
+        except Exception as e:
+            return f"❌ Error al subir bandera: {str(e)}", 500
+
+    @app.post('/link-media/<song_id>')
+    @admin_required
+    def link_media(song_id):
+        # placeholder: en este backend no persistimos referencia explícita
+        _ = request.get_json(silent=True) or {}
+        return jsonify({"ok": True})
 
     return app
