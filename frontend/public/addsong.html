@@ -702,8 +702,8 @@ $create.addEventListener('click', async ()=>{
         else{ msg.style.color='#b00020'; msg.textContent='Wrong password'; }
       }catch{ msg.style.color='#b00020'; msg.textContent='Network error'; }
     }
-    document.addEventListener('DOMContentLoaded', refreshAuth);
-        showLock();
+    document.addEventListener('DOMContentLoaded', () => {
+        showLock();   // siempre muestra el overlay al abrir
     document.getElementById('admin-login').addEventListener('click', doLogin);
     document.getElementById('admin-cancel').addEventListener('click', hideLock);
     document.getElementById('admin-pass').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin(); });
