@@ -677,7 +677,16 @@ def create_app():
 
     @app.route('/auth/login', methods=['POST', 'GET'])
     def auth_login():
-        pwd = request.form.get('password') if request.method == 'POST' else request.args.get('password')
+        pwd = None
+        if request.method == 'POST':
+            if request.is_json:
+                data = request.get_json(silent=True) or {}
+                pwd = data.get('password')
+            else:
+                pwd = request.form.get('password')
+        else:
+            pwd = request.args.get('password')
+
         if (pwd or '') == ADMIN_PASS:
             session['is_admin'] = True
             return jsonify({"ok": True, "is_admin": True})
