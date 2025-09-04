@@ -655,4 +655,52 @@ def create_app():
         except Exception as e:
             return jsonify({'ok': False, 'error': str(e)}), 500
 
+    # --- AUTH MINIMA PTO (pegar antes de 'return app') --------------------------
+import os, secrets
+from functools import wraps
+from flask import session, request, jsonify
+
+# Secret key (fallback seguro en local)
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-' + secrets.token_hex(16))
+
+ADMIN_PASS = os.environ.get('PTO_ADMIN_PASS', 'pto1234')
+
+def admin_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if session.get('is_admin') is True:
+            return f(*args, **kwargs)
+        return jsonify({"ok": False, "error": "admin_required"}), 401
+    return wrapper
+
+@app.route('/auth/status')
+def auth_status():
+    return jsonify({"ok": True, "is_admin": bool(session.get('is_admin'))})
+
+@app.route('/auth/login', methods=['POST', 'GET'])
+def auth_login():
+    pwd = request.form.get('password') if request.method == 'POST' else request.args.get('password')
+    if (pwd or '') == ADMIN_PASS:
+        session['is_admin'] = True
+        return jsonify({"ok": True, "is_admin": True})
+    return jsonify({"ok": False, "error": "bad_password"}), 401
+
+@app.route('/auth/logout', methods=['POST', 'GET'])
+def auth_logout():
+    session.pop('is_admin', None)
+    return jsonify({"ok": True, "is_admin": False})
+
+# --- PROTEGER SOLO LO NECESARIO PARA ESTA PRUEBA ----------------------------
+# Añade @admin_required a las rutas sensibles que ya tienes definidas:
+#   - /votes/reset
+#   - /votes/now_playing
+#   - /create-files
+#   - /add-song
+# Ejemplo de uso:
+# @app.route('/votes/reset', methods=['POST'])
+# @admin_required
+# def votes_reset():
+#     ...
+# ----------------------------------------------------------------------------
+
     return app
