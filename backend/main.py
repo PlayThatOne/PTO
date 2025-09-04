@@ -13,7 +13,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import eventlet
 eventlet.monkey_patch()
 
-from flask import Flask, send_from_directory, jsonify, request, Blueprint, session
+from flask import Flask, send_from_directory, jsonify, request, Blueprint
 print(">> Flask importado")
 
 from backend.api.websockets import socketio
@@ -161,77 +161,29 @@ def _http_json(url, headers=None, timeout=7):
         return json.loads(resp.read().decode("utf-8", errors="ignore"))
 
 def _score_match(qt, qa, it_title, it_artist):
-    t = it_title.lower(); a = (it_artist or "").lower(); s = 0
+    # coincidencias sencillas sin librerías extra
+    t = it_title.lower()
+    a = (it_artist or "").lower()
+    s = 0
     if qt in t: s += 3
     if qa and qa in a: s += 2
+    # bonus por igualdad (muy aproximado)
     if t == qt: s += 2
     if qa and a == qa: s += 1
     return s
 
-
 def create_app():
     print(">> creando app")
-    
-    # === Create/overwrite TAB & lyrics files (Addsong → Paste & Add) ===
-@app.post('/create-files')
-@admin_required
-def create_files():
-    try:
-        data = request.get_json(force=True) or {}
-        sid = (data.get('id') or '').strip()
-        if not sid:
-            return jsonify({'ok': False, 'error': 'missing_id'}), 400
-        if 'lyrics' in data:
-            (LYRICS_DIR / f"{sid}.txt").parent.mkdir(parents=True, exist_ok=True)
-            with open(LYRICS_DIR / f"{sid}.txt", 'w', encoding='utf-8') as f:
-                f.write((data.get('lyrics') or '').strip())
-        if 'tab' in data:
-            (TABS_DIR / f"TAB{sid}.txt").parent.mkdir(parents=True, exist_ok=True)
-            with open(TABS_DIR / f"TAB{sid}.txt", 'w', encoding='utf-8') as f:
-                f.write((data.get('tab') or '').strip())
-        return jsonify({'ok': True})
-    except Exception as e:
-        return jsonify({'ok': False, 'error': str(e)}), 500
 
+    # Sirve estáticos desde la raíz del sitio
     app = Flask(__name__, static_folder=str(PUBLIC_DIR), static_url_path="")
-    # ====== sesiones para admin ======
-    app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-change-me")
-    app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
-
-    # Decorador admin
-    def admin_required(fn):
-        from functools import wraps
-        @wraps(fn)
-        def _wrap(*args, **kwargs):
-            if not session.get('is_admin'):
-                return jsonify({'error': 'auth_required'}), 401
-            return fn(*args, **kwargs)
-        return _wrap
-
-    # Endpoints de auth
-    ADMIN_PASS = os.getenv('PTO_ADMIN_PASS', 'pto1234')
-
-    @app.post('/auth/login')
-    def auth_login():
-        data = request.get_json(silent=True) or {}
-        if (data.get('password') or '') != ADMIN_PASS:
-            return jsonify({'ok': False}), 401
-        session['is_admin'] = True
-        return jsonify({'ok': True})
-
-    @app.get('/auth/status')
-    def auth_status():
-        return jsonify({'is_admin': bool(session.get('is_admin'))})
-
-    @app.post('/auth/logout')
-    @admin_required
-    def auth_logout():
-        session.clear()
-        return jsonify({'ok': True})
-
+    
     app.register_blueprint(ingest_bp)
+    
+    # Proposals API
     app.register_blueprint(proposals_bp)
 
+    # Log para confirmar que index existe
     idx = PUBLIC_DIR / "index.html"
     print(f">> index.html existe? {idx.exists()}  ({idx})")
 
@@ -252,8 +204,7 @@ def create_files():
     TABS_DIR       = CORE_DIR / "songs" / "tabs"
     IMAGES_DIR     = CORE_DIR / "images"
     ARTIST_IMG_DIR = IMAGES_DIR / "artist"
-    FLAGS_DIR      = IMAGES_DIR / "flags"
-    for d in [LYRICS_DIR, TABS_DIR, IMAGES_DIR, ARTIST_IMG_DIR, FLAGS_DIR]:
+    for d in [LYRICS_DIR, TABS_DIR, IMAGES_DIR, ARTIST_IMG_DIR]:
         d.mkdir(parents=True, exist_ok=True)
     print(f">> LYRICS_DIR={LYRICS_DIR}")
     print(f">> TABS_DIR={TABS_DIR}")
@@ -317,7 +268,6 @@ def create_files():
         return jsonify(counts)
 
     @app.route("/votes/reset", methods=["GET","POST"])  # protegido
-    @admin_required
     def reset_votes():
         from backend.services.vote_logic import save_states
         save_votes({})
@@ -336,7 +286,6 @@ def create_files():
 
     # ===== AÑADIR/ACTUALIZAR CANCIÓN =====
     @app.route("/add-song", methods=["POST"])  # protegido
-    @admin_required
     def add_song():
         try:
             data = request.get_json(force=True)
@@ -408,7 +357,6 @@ def create_files():
 
     # ===== VOTING / SOCKETS =====
     @app.route("/votes/now_playing", methods=["POST"])  # protegido
-    @admin_required
     def set_now_playing():
         from backend.services.vote_logic import save_states
         data = request.get_json()
@@ -453,7 +401,6 @@ def create_files():
 
     # ===== CATALOGO =====
     @app.route("/refresh-catalog", methods=["POST"])  # protegido
-    @admin_required
     def refresh_catalog():
         import subprocess
         try:
@@ -491,14 +438,12 @@ def create_files():
         return missing_artist_photos()
 
     @app.route("/edit-catalog")
-    @admin_required
     def edit_catalog():
         from flask import send_file
         catalog_csv = CATALOG_CSV
         return send_file(str(catalog_csv), as_attachment=False)
 
     @app.route("/upload-catalog", methods=["POST"])  # protegido + acepta 'file' o 'catalog'
-    @admin_required
     def upload_catalog():
         try:
             file = request.files.get("catalog") or request.files.get("file")
@@ -511,14 +456,12 @@ def create_files():
             return f"❌ Error al subir catálogo: {str(e)}", 500
 
     @app.route("/download-catalog")
-    @admin_required
     def download_catalog():
         from flask import send_file
         catalog_csv = CATALOG_CSV
         return send_file(str(catalog_csv), as_attachment=True)
 
     @app.route("/list-songs")
-    @admin_required
     def list_songs():
         try:
             catalog_csv = CATALOG_CSV
@@ -533,7 +476,6 @@ def create_files():
             return jsonify({"error": str(e)}), 500
 
     @app.route("/delete-songs", methods=["POST"])  # protegido
-    @admin_required
     def delete_songs():
         try:
             data = request.get_json(force=True) or {}
@@ -584,7 +526,7 @@ def create_files():
             return f"Error al borrar canciones: {e}", 500
 
     # Aliases para addsong.html
-    @app.route('/songs/delete', methods=['POST'])
+    @app.post('/songs/delete',)
     def delete_songs_alias():
         return delete_songs()
 
@@ -607,7 +549,6 @@ def create_files():
             return jsonify({"error": str(e)}), 500
 
     @app.route("/update-enabled", methods=["POST"])  # protegido
-    @admin_required
     def update_enabled_status():
         try:
             data = request.get_json()
@@ -633,7 +574,7 @@ def create_files():
         except Exception as e:
             return f"❌ Error al actualizar estado: {str(e)}", 500
 
-    @app.route('/songs/enabled', methods=['POST'])
+    @app.post('/songs/enabled')
     def update_enabled_alias():
         return update_enabled_status()
 
@@ -656,8 +597,7 @@ def create_files():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    @app.route("/upload-logo", methods=["POST"])  # protegido
-    @admin_required
+    @app.route("/upload-logo", methods=["POST"])
     def upload_logo():
         try:
             file = request.files.get("logo")
@@ -672,16 +612,18 @@ def create_files():
         except Exception as e:
             return f"❌ Error al subir logo: {str(e)}", 500
 
-    @app.route("/upload-artist-photo/<artist>", methods=["POST"])  # protegido
-    @admin_required
+    @app.route("/upload-artist-photo/<artist>", methods=["POST"])
     def upload_artist_photo(artist):
         try:
-            file = request.files.get("photo") or request.files.get("image")
-            if not file:
+            if "photo" not in request.files:
                 return "No se recibió ningún archivo", 400
+            file = request.files["photo"]
+            if file.filename == "":
+                return "Nombre de archivo vacío", 400
             ext = os.path.splitext(file.filename)[1].lower()
             if ext not in [".jpg", ".jpeg", ".png", ".bmp"]:
                 return "Formato no permitido", 400
+
             safe_artist = artist.strip().replace("/", "_").replace("\\", "_")
             save_path = ARTIST_IMG_DIR / (safe_artist + ext)
             ARTIST_IMG_DIR.mkdir(parents=True, exist_ok=True)
@@ -690,34 +632,27 @@ def create_files():
         except Exception as e:
             return f"❌ Error al subir imagen: {str(e)}", 500
 
-    # Aliases sencillos usados por addsong.html
-    @app.post('/upload-image/<artist>')
-    def upload_image_alias(artist):
-        return upload_artist_photo(artist)
-
-    @app.post('/upload-flag/<language>')
-    @admin_required
-    def upload_flag(language):
+    # === Create/overwrite TAB & lyrics files (Addsong → Paste & Add) ===
+    @app.post('/create-files')
+    def create_files():
         try:
-            file = request.files.get('flag') or request.files.get('image')
-            if not file:
-                return "No se recibió ningún archivo", 400
-            ext = os.path.splitext(file.filename)[1].lower()
-            if ext not in [".png", ".jpg", ".jpeg", ".bmp"]:
-                return "Formato no permitido", 400
-            safe = language.strip().replace("/", "_").replace("\\", "_")
-            save_path = FLAGS_DIR / (safe + ext)
-            FLAGS_DIR.mkdir(parents=True, exist_ok=True)
-            file.save(str(save_path))
-            return str(save_path)
-        except Exception as e:
-            return f"❌ Error al subir bandera: {str(e)}", 500
+            data = request.get_json(force=True) or {}
+            sid = (data.get('id') or '').strip()
+            if not sid:
+                return jsonify({'ok': False, 'error': 'missing_id'}), 400
 
-    @app.post('/link-media/<song_id>')
-    @admin_required
-    def link_media(song_id):
-        # placeholder: en este backend no persistimos referencia explícita
-        _ = request.get_json(silent=True) or {}
-        return jsonify({"ok": True})
+            if 'lyrics' in data:
+                (LYRICS_DIR / f"{sid}.txt").parent.mkdir(parents=True, exist_ok=True)
+                with open(LYRICS_DIR / f"{sid}.txt", 'w', encoding='utf-8') as f:
+                    f.write((data.get('lyrics') or '').strip())
+
+            if 'tab' in data:
+                (TABS_DIR / f"TAB{sid}.txt").parent.mkdir(parents=True, exist_ok=True)
+                with open(TABS_DIR / f"TAB{sid}.txt", 'w', encoding='utf-8') as f:
+                    f.write((data.get('tab') or '').strip())
+
+            return jsonify({'ok': True})
+        except Exception as e:
+            return jsonify({'ok': False, 'error': str(e)}), 500
 
     return app
