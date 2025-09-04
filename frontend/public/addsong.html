@@ -141,13 +141,14 @@
       <div>
         <label for="catalog-file">Subir CSV del catálogo</label>
         <input type="file" id="catalog-file" accept=".csv">
-        <button type="button" onclick="uploadCatalog()">Subir CSV</button>
+        <button type="button" onclick="uploadCatalog()">Subir catálogo</button>
       </div>
       <div>
-        <button type="button" onclick="refreshCatalog()">Regenerar catalog.json</button>
-        <button type="button" onclick="downloadCatalog()">Descargar catalog.csv</button>
+        <button type="button" onclick="downloadCatalog()">Descargar catálogo</button>
       </div>
     </div>
+
+    <button type="button" onclick="refreshCatalog()">Actualizar catálogo</button>
 
     <h2>Actualizar un campo (uno solo)</h2>
     <div class="side-by-side">
@@ -702,6 +703,8 @@ $create.addEventListener('click', async ()=>{
       }catch{ msg.style.color='#b00020'; msg.textContent='Network error'; }
     }
     document.addEventListener('DOMContentLoaded', refreshAuth);
+        showLock();
+        refreshAuth();
     document.getElementById('admin-login').addEventListener('click', doLogin);
     document.getElementById('admin-cancel').addEventListener('click', hideLock);
     document.getElementById('admin-pass').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin(); });
