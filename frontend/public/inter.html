@@ -509,7 +509,8 @@
   document.getElementById('admin-cancel').addEventListener('click', hideLock);
   document.getElementById('admin-pass').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin(); });
   // Comprobar sesión al cargar
-  document.addEventListener('DOMContentLoaded', refreshAuth);
+  document.addEventListener('DOMContentLoaded', () => {
+    showLock();   // siempre muestra el overlay al abrir
 })();
 </script>
 
