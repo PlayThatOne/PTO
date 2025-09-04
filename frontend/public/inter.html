@@ -91,30 +91,9 @@
     }
     #autoscroll .play{ font-weight:700; }
     #autoscroll .active{ outline:2px solid #2e7d32; }
-
-    /* Admin lock overlay */
-    #admin-lock{ position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:99999; }
-    #admin-lock .panel{ background:#fff; padding:18px 16px; border-radius:12px; width:min(420px,90vw); box-shadow:0 10px 30px rgba(0,0,0,.25); }
-    #admin-lock h2{ margin:0 0 10px; font-size:1.1rem; }
-    #admin-lock input{ width:100%; padding:10px; font-size:1rem; box-sizing:border-box; }
-    #admin-lock button{ margin-top:10px; padding:10px 12px; font-size:1rem; }
   </style>
 </head>
 <body>
-
-  <!-- Admin overlay -->
-  <div id="admin-lock" aria-modal="true" role="dialog">
-    <div class="panel">
-      <h2>Admin access</h2>
-      <p style="margin:0 0 8px; color:#444;">Enter password to control this panel.</p>
-      <input id="admin-pass" type="password" placeholder="Password" autocomplete="current-password"/>
-      <div style="display:flex; gap:8px; margin-top:10px;">
-        <button id="admin-login">Unlock</button>
-        <button id="admin-cancel" style="background:#eee;">Cancel</button>
-      </div>
-      <div id="admin-msg" style="margin-top:8px; color:#b00020; min-height:1em;"></div>
-    </div>
-  </div>
 
   <div id="autoscroll" aria-label="Auto-scroll">
     <button id="as-play" class="play" title="Play/Stop">▶</button>
@@ -183,8 +162,6 @@
       div.textContent = `${title} (${votes})`;
 
       div.addEventListener("click", async () => {
-        // ← Solo admins pueden cambiar la canción en reproducción
-        if (!window.__isAdmin) { showLock(); return; }
         if (id === nowPlayingId) return;
 
         if (selectedId === id) {
@@ -271,8 +248,6 @@
     });
 
     resetButton.addEventListener("click", async () => {
-      // ← Solo admins pueden reiniciar sesión
-      if (!window.__isAdmin) { showLock(); return; }
       if (confirm("¿Seguro que quieres reiniciar la sesión?")) {
         await fetch("/votes/reset");
         localStorage.removeItem("songStates");
@@ -481,103 +456,6 @@
 })();
 </script>
 
-<!-- === Admin overlay auth logic (al final para no bloquear la carga) === -->
-<script>
-(function(){
-  window.__isAdmin = false;
-  function showLock(){ document.getElementById('admin-lock').style.display='flex'; document.getElementById('admin-pass').focus(); }
-  function hideLock(){ document.getElementById('admin-lock').style.display='none'; }
-  async function refreshAuth(){
-    try{
-      const r = await fetch('/auth/status', {credentials:'same-origin'});
-      const j = await r.json();
-      window.__isAdmin = !!j.is_admin;
-      if (!window.__isAdmin) showLock(); else hideLock();
-    }catch(e){ showLock(); }
-  }
-  async function doLogin(){
-    const p=(document.getElementById('admin-pass').value||'').trim();
-    const msg=document.getElementById('admin-msg'); msg.textContent='';
-    try{
-      const r=await fetch('/auth/login',{method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({password:p}), credentials:'same-origin'});
-      if(r.ok){ msg.style.color='#0a0'; msg.textContent='Unlocked'; document.getElementById('admin-pass').value=''; await refreshAuth(); }
-      else{ msg.style.color='#b00020'; msg.textContent='Wrong password'; }
-    }catch{ msg.style.color='#b00020'; msg.textContent='Network error'; }
-  }
-  window.showLock = showLock;
-  document.getElementById('admin-login').addEventListener('click', doLogin);
-  document.getElementById('admin-cancel').addEventListener('click', hideLock);
-  document.getElementById('admin-pass').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin(); });
-  // Comprobar sesión al cargar
-  document.addEventListener('DOMContentLoaded', () => {
-    showLock();   // siempre muestra el overlay al abrir
-})();
-</script>
-
-<script>
-// Fallback de login: si POST /auth/login da 405, reintenta con GET
-(function(){
-  const btn = document.getElementById('admin-login');
-  const input = document.getElementById('admin-pass');
-  const msg = document.getElementById('admin-msg');
-  const lock = document.getElementById('admin-lock');
-
-  if (!btn || !input) return;
-
-  // Quitamos posibles handlers anteriores para evitar doble envío
-  const clone = btn.cloneNode(true);
-  btn.parentNode.replaceChild(clone, btn);
-
-  async function doLoginUniversal(){
-    const p = (input.value || '').trim();
-    msg.textContent = '';
-    try {
-      // 1) Intento POST (ideal)
-      let r = await fetch('/auth/login', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ password: p }),
-        credentials:'same-origin'
-      });
-
-      // 2) Si el backend no permite POST → 405 → reintenta con GET
-      if (r.status === 405) {
-        r = await fetch('/auth/login?password=' + encodeURIComponent(p), {
-          method:'GET',
-          credentials:'same-origin'
-        });
-      }
-
-      if (!r.ok) {
-        msg.style.color = '#b00020';
-        msg.textContent = 'Wrong password';
-        return;
-      }
-
-      // OK
-      msg.style.color = '#0a0';
-      msg.textContent = 'Unlocked';
-      input.value = '';
-
-      // Actualiza estado y cierra overlay
-      try {
-        const st = await fetch('/auth/status', { credentials:'same-origin' });
-        const j = await st.json();
-        if (j && j.is_admin) {
-          window.__isAdmin = true;
-          if (lock) lock.style.display = 'none';
-        }
-      } catch (_) {}
-    } catch (e) {
-      msg.style.color = '#b00020';
-      msg.textContent = 'Network error';
-    }
-  }
-
-  clone.addEventListener('click', doLoginUniversal);
-  input.addEventListener('keydown', (e)=>{ if (e.key === 'Enter') doLoginUniversal(); });
-})();
-</script>
 
 </body>
 </html>
