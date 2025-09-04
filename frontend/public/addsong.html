@@ -708,5 +708,68 @@ $create.addEventListener('click', async ()=>{
   })();
   </script>
 
+  <script>
+// Patch: 2 líneas = Título / Artista + Lyrics vacías tras Parse
+(function(){
+  const $parse = document.getElementById('btn-parse');
+  if (!$parse) return;
+
+  function slugify(s){
+    return (s||'').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+  }
+  const isSection = s => /^(intro|verse|chorus|bridge|outro|pre-?chorus|solo|coro|estrofa|puente|final)[:\s]/i.test(s);
+
+  function fixAfterParse(){
+    try{
+      const paste    = document.getElementById('paste-input');
+      const tEl      = document.getElementById('det-title');
+      const aEl      = document.getElementById('det-artist');
+      const yEl      = document.getElementById('det-year');
+      const idEl     = document.getElementById('det-id');
+      const lyrEl    = document.getElementById('det-lyrics');
+      const createEl = document.getElementById('btn-create');
+
+      const raw   = (paste?.value || '').replace(/\r/g,'');
+      const lines = raw.split('\n').map(s=>s.trim()).filter(Boolean);
+
+      // Caso A: 1ª línea = Título, 2ª = Artista (si no parecen secciones tipo Intro:)
+      if (lines.length >= 2 && !isSection(lines[0]) && !isSection(lines[1])) {
+        if (!tEl.value) tEl.value = lines[0];
+        if (!aEl.value) aEl.value = lines[1];
+        const y = (lines[0].match(/\((\d{4})\)/) || lines[1].match(/\((\d{4})\)/) || [])[1];
+        if (!yEl.value && y) yEl.value = y;
+      } 
+      // Caso B: una sola línea "Title — Artist" o "Artist — Title"
+      else if (lines[0]) {
+        const m = lines[0].match(/^(.*?)\s*[—-]\s*(.*?)(?:\s*\((\d{4})\))?$/);
+        if (m && !tEl.value && !aEl.value) {
+          const left=m[1].trim(), right=m[2].trim();
+          const rightLooksArtist = right.split(/\s+/).length <= 5;
+          if (rightLooksArtist) { tEl.value = left; aEl.value = right; }
+          else { aEl.value = left; tEl.value = right; }
+          if (!yEl.value && m[3]) yEl.value = m[3];
+        }
+      }
+
+      // Generar ID si falta
+      if (idEl && !idEl.value && tEl.value && aEl.value) {
+        idEl.value = slugify(aEl.value + '_' + tEl.value);
+      }
+
+      // Lyrics vacías por defecto
+      if (lyrEl) lyrEl.value = '';
+
+      // Habilitar Create si ya hay título e ID
+      if (createEl) createEl.disabled = !(idEl?.value && tEl.value);
+    }catch(e){ /* silencioso */ }
+  }
+
+  // Dejamos que tu handler original de Parse corra, y luego arreglamos
+  $parse.addEventListener('click', ()=> setTimeout(fixAfterParse, 0));
+})();
+</script>
+
 </body>
 </html>
