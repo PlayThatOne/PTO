@@ -171,6 +171,27 @@ def _score_match(qt, qa, it_title, it_artist):
 
 def create_app():
     print(">> creando app")
+    
+    # === Create/overwrite TAB & lyrics files (Addsong → Paste & Add) ===
+@app.post('/create-files')
+@admin_required
+def create_files():
+    try:
+        data = request.get_json(force=True) or {}
+        sid = (data.get('id') or '').strip()
+        if not sid:
+            return jsonify({'ok': False, 'error': 'missing_id'}), 400
+        if 'lyrics' in data:
+            (LYRICS_DIR / f"{sid}.txt").parent.mkdir(parents=True, exist_ok=True)
+            with open(LYRICS_DIR / f"{sid}.txt", 'w', encoding='utf-8') as f:
+                f.write((data.get('lyrics') or '').strip())
+        if 'tab' in data:
+            (TABS_DIR / f"TAB{sid}.txt").parent.mkdir(parents=True, exist_ok=True)
+            with open(TABS_DIR / f"TAB{sid}.txt", 'w', encoding='utf-8') as f:
+                f.write((data.get('tab') or '').strip())
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
 
     app = Flask(__name__, static_folder=str(PUBLIC_DIR), static_url_path="")
     # ====== sesiones para admin ======
