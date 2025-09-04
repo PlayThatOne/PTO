@@ -513,5 +513,70 @@
 })();
 </script>
 
+<script>
+// Fallback de login: si POST /auth/login da 405, reintenta con GET
+(function(){
+  const btn = document.getElementById('admin-login');
+  const input = document.getElementById('admin-pass');
+  const msg = document.getElementById('admin-msg');
+  const lock = document.getElementById('admin-lock');
+
+  if (!btn || !input) return;
+
+  // Quitamos posibles handlers anteriores para evitar doble envío
+  const clone = btn.cloneNode(true);
+  btn.parentNode.replaceChild(clone, btn);
+
+  async function doLoginUniversal(){
+    const p = (input.value || '').trim();
+    msg.textContent = '';
+    try {
+      // 1) Intento POST (ideal)
+      let r = await fetch('/auth/login', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ password: p }),
+        credentials:'same-origin'
+      });
+
+      // 2) Si el backend no permite POST → 405 → reintenta con GET
+      if (r.status === 405) {
+        r = await fetch('/auth/login?password=' + encodeURIComponent(p), {
+          method:'GET',
+          credentials:'same-origin'
+        });
+      }
+
+      if (!r.ok) {
+        msg.style.color = '#b00020';
+        msg.textContent = 'Wrong password';
+        return;
+      }
+
+      // OK
+      msg.style.color = '#0a0';
+      msg.textContent = 'Unlocked';
+      input.value = '';
+
+      // Actualiza estado y cierra overlay
+      try {
+        const st = await fetch('/auth/status', { credentials:'same-origin' });
+        const j = await st.json();
+        if (j && j.is_admin) {
+          window.__isAdmin = true;
+          if (lock) lock.style.display = 'none';
+        }
+      } catch (_) {}
+    } catch (e) {
+      msg.style.color = '#b00020';
+      msg.textContent = 'Network error';
+    }
+  }
+
+  clone.addEventListener('click', doLoginUniversal);
+  input.addEventListener('keydown', (e)=>{ if (e.key === 'Enter') doLoginUniversal(); });
+})();
+</script>
+
 </body>
 </html>
