@@ -34,7 +34,148 @@
             font-size: 1.2em;
             background: none;
             border: none;
-            margin-left: auto; /* Empuja el botón a la derecha */
+        }
+
+        #lyrics-container.collapsed {
+            display: none;
+        }
+
+        #ranking-box {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 20px;
+            border-radius: 8px;
+            background-color: #fdfdfd;
+            max-width: 100%;
+            overflow-x: auto;
+        }
+
+        #ranking-top3 {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 10px;
+        }
+
+        #ranking-top3 li {
+            list-style: none;
+            padding: 10px;
+            flex: 1;
+            margin: 0 5px;
+            font-weight: bold;
+            font-size: 1.1em;
+            text-align: left;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background-color: #f3f3f3;
+            cursor: pointer;
+        }
+
+        #ranking-rest {
+            display: flex;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            gap: 6px;
+        }
+
+        #ranking-rest li {
+            list-style: none;
+            min-width: 120px;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            text-align: left;
+            background-color: #f9f9f9;
+            cursor: pointer;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@500;700&display=swap');
+
+        body {
+            font-family: 'Raleway', sans-serif;
+        }
+        :root{ --voted-green: #32cd32; }
+
+        #songs-container {
+            column-count: 1;
+            column-gap: 20px;
+            padding: 10px 20px 40px;
+        }
+
+        @media (min-width: 600px) {
+            #songs-container {
+                column-count: 2;
+            }
+        }
+
+        @media (min-width: 1000px) {
+            #songs-container {
+                column-count: 3;
+            }
+        }
+
+        .group h3 {
+            margin: 0 0 4px;
+            font-size: 1.15em;
+            color: #333;
+            border: none;
+            padding: 0;
+        }
+
+        .song {
+            margin: 4px 0;
+            padding: 18px 28px;
+            font-size: 1.2em;
+            font-weight: 600;
+            text-align: left;
+            background-color: #f9f9f9;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            transition: background-color 0.2s ease;
+            user-select: none;
+            cursor: pointer;
+        }
+
+        .song:hover:not(.selected):not(.voted):not(.played) {
+           #background-color: #eee;
+            background-color: blue; <!--peter-->
+        }
+
+        .selected { background-color: orange; }
+        .voted { background-color: var(--voted-green) !important; }
+        .played {
+            opacity: 0.4;
+            pointer-events: none;
+            text-decoration: line-through;
+            background-color: pink;<!--peter-->
+        }
+
+        body {
+            margin: 0;
+            background: url('/songs/images/fondo_horizontal.png') no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        @media (orientation: portrait) {
+            body {
+                background: url('/songs/images/fondo_vertical.png') no-repeat center center fixed;
+                background-size: cover;
+            }
+        }
+
+        .banner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: #222;
+            color: white;
+        }
+
+        .banner img { max-height: 50px; }
+        .banner-title {
+            font-size: 1.5em;
+            text-align: left;
+            flex-grow: 1;
         }
 
         #lyrics-container {
@@ -49,153 +190,148 @@
         #ranking { margin-top: 20px; }
         #ranking li {
             cursor: pointer;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 3px 0;
             list-style: none;
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 8px;
-            background-color: #f9f9f9;
-            display: grid;
-            grid-template-columns: auto 1fr auto;
-            align-items: center;
-            gap: 10px;
-            border: 1px solid #eee;
         }
-        #ranking li .song { font-size: 1em; }
-        #ranking li.selected { background-color: #fff5e6; border: 1px solid #ffcc80; }
-        #ranking li.voted { background-color: #e6ffea; border: 1px solid #80ff9b; }
-        #ranking .song .title { font-weight: bold; }
-        #ranking .song .meta { font-size: 0.9em; color: #666; margin-left: 6px; }
+        #ranking li.played {
+            opacity: 0.4;
+            text-decoration: line-through;
+            pointer-events: none;
+        }
 
-        /* Agrupación */
-        .group {
-            margin: 16px 0;
-            padding: 8px 0;
-            border-top: 1px solid #eee;
-        }
         .group h3 {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin: 8px 0 12px 0;
-            font-size: 1.15em;
+            align-items: center; /* centra verticalmente tanto texto como imagen */
+            font-weight: bold;
         }
+        .group h3 img {
+            max-height: 100%; /* ocupa toda la altura disponible */
+            height: auto; /* mantiene proporción */
+            object-fit: contain;
+            margin-left: auto;
+        }
+
+        .group { position: relative; display: flex;
+            justify-content: space-between;
+            align-items: flex-start; /* fuerza la alineación superior */
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            padding: 5px;
+        }
+
+        .group-left { flex: 1; padding-right: 10px; }
         .group-right {
+            flex: 0 0 25%;
             display: flex;
-            align-items: center;
+            justify-content: center;
+            align-items: flex-start; /* siempre arriba */
+            overflow: hidden;
         }
         .group-right img {
-            display: block;
-            max-width: 120px; /* límite base; se ajusta en runtime */
+            max-height: calc(2.5em + 80px); /* altura epígrafe + 1 canción */
+            max-width: 100%;
             height: auto;
-            border-radius: 6px;
-            margin-left: 12px;
+            width: auto;
             object-fit: contain;
         }
 
-        /* Contenedor de lista */
-        .ran-container { display: grid; gap: 8px; }
-
-        /* LET buttons */
-        #lyrics-header .let-controls {
-            display: flex;
-            gap: 6px;
-            align-items: center;
+        #lyrics-wrapper,
+        #lyrics-container,
+        #ranking-box {
+            background: none !important;
+            border: none !important;
         }
-        .let-btn {
+
+        .song { background: none !important; border: 1px solid #ccc; }
+        .song { background-color: #fff !important; border: 1px solid #ccc; } /* visible */
+
+        .song.selected { background-color: orange !important; }
+        .song.voted { background-color: var(--voted-green) !important; }
+        .song.played { background-color: pink !important; }
+
+        #ranking-box { background: none !important; border: none !important; }
+        #ranking-top3 li,
+        #ranking-rest li {
+            background-color: #fff !important;
             border: 1px solid #ccc;
-            background: #fff;
-            padding: 4px 8px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9em;
-        }
-        .let-btn.active { background: #fafafa; border-color: #999; }
-
-        /* Footer simple */
-        footer {
-            margin: 24px 0 16px;
-            padding-top: 12px;
-            border-top: 1px solid #eee;
-            color: #444;
-            font-size: 0.95em;
-        }
-        footer a { color: #0645ad; text-decoration: none; }
-        footer a:hover { text-decoration: underline; }
-
-        /* Sugerencias */
-        #suggest-box {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 8px;
-            align-items: center;
-            margin-top: 10px;
-            background: #fafafa;
-            border: 1px solid #eee;
-            border-radius: 8px;
-            padding: 10px;
-        }
-        #suggest-box input {
-            padding: 6px 10px;
-            border: 1px solid #bbb;
-            border-radius: 6px;
         }
 
-        /* Responsive: tarjetas */
+        .banner-title {
+            text-align: center !important;
+            font-size: 2em !important;
+            font-family: 'Lobster', cursive, 'Raleway', sans-serif !important;
+            letter-spacing: 1px;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Lobster&display=swap');
+
+        /* === Uniformidad VOT === */
+        .group-left { min-width: 0; }
         .song {
-            display: grid; 
-            grid-template-columns: auto 1fr; 
-            gap: 6px 10px; 
+            width: 100%;
+            max-width: 100%;
+            height: 30px;
+            display: flex;
             align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            box-sizing: border-box;
         }
-        .song .left { grid-column: 1; }
-        .song .right { grid-column: 2; }
-        .song .right .title { font-weight: 600; }
-        .song .right .meta  { color:#666; font-size:0.9em; }
-        .song .votes { text-align: right; font-variant-numeric: tabular-nums; }
+        .group-right img { max-height: calc(2.5em + 30px) !important; }
 
-        /* Agrupación select */
-        #grouping {
-            margin: 10px 0;
-            padding: 6px 8px;
-            border: 1px solid #bbb;
-            border-radius: 6px;
+        /* Evitar que un grupo se divida entre columnas */
+        .group {
+            break-inside: avoid;
+            -webkit-column-break-inside: avoid;
+            -moz-column-break-inside: avoid;
         }
-
-        /* Encabezado fijo para lyrics */
-        #lyrics-wrapper.hidden { display:none; }
-
-        /* Mobile tweaks */
-        @media (max-width: 600px) {
-            #lyrics-header {
-                font-size: 0.95em;
-                padding: 6px 10px;
-            }
-            .group-right img { max-width: 92px; }
-            #suggest-box { grid-template-columns: 1fr; }
+    /* === Group header band across row === */
+        .group::before{
+            content:"";
+            position:absolute;
+            left:0; right:0;
+            top:4px;              /* align with <h3> */
+            height:2.4em;         /* band height */
+            background:#f1f5ff;   /* pastel */
+            border-radius:6px;
+            z-index:0;            /* sit behind content */
+            pointer-events:none;
         }
+        .group-left, .group-right, .group h3{ position:relative; z-index:1; }
+        .group h3{ padding:6px 10px; }
     </style>
 </head>
 <body>
+<div class="banner">
+    <img alt="Logo" id="logo-left" src="/songs/images/logo.png"/>
+    <div class="banner-title">Play That One!</div>
+    <!-- ← renombrado para el script de actualización -->
+    <img alt="Event Logo" id="eventLogo" src="/songs/images/event-logo.png"/>
+</div>
 
-<div id="lyrics-wrapper" class="hidden">
+<div id="lyrics-wrapper">
     <div id="lyrics-header">
         <span>Now Playing</span>
         <button id="toggle-lyrics" type="button">▲</button>
-        <div class="let-controls">
-            <button class="let-btn" data-mode="min">LET: Min</button>
-            <button class="let-btn" data-mode="half">LET: Half</button>
-            <button class="let-btn" data-mode="max">LET: Max</button>
-        </div>
     </div>
-    <div id="lyrics-container"></div>
-</div>
+    <div id="lyrics-container">
+        Loading lyrics...
+    </div>
 
-<div id="controls">
-    <label for="grouping">Group by: </label>
-    <select id="grouping">
-        <option value="artist" selected>Author</option>
-        <option value="language">Language</option>
+    <iframe id="ranking-frame" src="./ran.html" style="width:100%; border:none;"></iframe>
+
+    <h1>Vote a Song</h1>
+    <label for="ord-select" style="font-weight: 600; margin-left: 20px;">Order by:</label>
+    <select id="ord-select" style="margin-bottom: 10px; padding: 6px; font-size: 1em;">
+        <option value="artist">Artist</option>
         <option value="year">Year</option>
+        <option value="language">Language</option>
         <option value="genre">Genre</option>
     </select>
 
@@ -210,311 +346,361 @@
             localStorage.setItem('deviceId', deviceId);
         }
 
-        let catalog = [];
+        const CATALOG_URL = '/catalog/catalog.json';
+        const songCatalog = {};
         let currentVotes = {};
         let selectedId = null;
-        let lastVotedId = null;
+        let nowPlayingId = null;
+        let ORDER_KEY = 'artist';
 
-        function createSongElement(song) {
-            const li = document.createElement('li');
-            li.id = song.id;
-
-            const left = document.createElement('div');
-            left.className = 'left votes';
-            left.textContent = (currentVotes[song.id]?.length || 0);
-
-            const right = document.createElement('div');
-            right.className = 'right';
-            const title = document.createElement('span');
-            title.className = 'title';
-            title.textContent = song.title;
-            const meta = document.createElement('span');
-            meta.className = 'meta';
-            meta.textContent = ` — ${song.artist} · ${song.year} · ${song.language} · ${song.genre}`;
-
-            right.append(title, meta);
-
-            li.append(left, right);
-
-            li.addEventListener('click', () => {
-                // 1er click: selección (naranja)
-                if (selectedId !== song.id) {
-                    document.querySelectorAll('#ranking li').forEach(el => el.classList.remove('selected'));
-                    li.classList.add('selected');
-                    selectedId = song.id;
-                    return;
-                }
-                // 2º click: confirmar voto (verde)
-                vote(song.id);
-                li.classList.remove('selected');
-                li.classList.add('voted');
-                lastVotedId = song.id;
-                selectedId = null;
-            });
-
-            return li;
-        }
-
-        function refreshRanList(songs) {
-            const ranContainer = document.querySelector('.ran-container');
-            if (!ranContainer) return;
-            ranContainer.innerHTML = "";
-            songs.forEach(song => {
-                const element = createSongElement(song);
-                ranContainer.appendChild(element);
-            });
-            if (lastVotedId) {
-                const votedElement = document.getElementById(lastVotedId);
-                if (votedElement) votedElement.classList.add("voted");
+        async function loadLyrics(songId) {
+            if (!songId) {
+                document.getElementById('lyrics-container').textContent = 'No song playing.';
+                return;
+            }
+            try {
+                const res = await fetch(`/songs/lyrics/${songId}.txt`);
+                if (!res.ok) throw new Error('Lyrics not found');
+                const text = await res.text();
+                document.getElementById('lyrics-container').textContent = text;
+            } catch (e) {
+                document.getElementById('lyrics-container').textContent = 'Lyrics unavailable.';
             }
         }
 
-        function renderGroups(grouped) {
-            const container = document.getElementById('songs-container');
-            container.innerHTML = '';
+        function markAll() {
+            const all = document.querySelectorAll('.song');
+            all.forEach(el => el.classList.remove('selected', 'voted', 'played'));
 
-            Object.keys(grouped).sort((a, b) => a.localeCompare(b)).forEach(groupName => {
-                const groupDiv = document.createElement('div');
-                groupDiv.className = 'group';
+            for (const id in songCatalog) {
+                const song = songCatalog[id];
+                const el = document.getElementById(id);
+                if (!el) continue;
 
-                const header = document.createElement('h3');
-                header.textContent = groupName;
-
-                const right = document.createElement('div');
-                right.className = 'group-right';
-                const img = document.createElement('img');
-
-                // regla de imágenes por agrupador
-                const mode = document.getElementById('grouping').value;
-                if (mode === 'artist') {
-                    // /songs/images/authors/<Artist>.jpg|jpeg|png|bmp
-                    img.src = findImage(`/songs/images/authors/`, groupName);
-                } else if (mode === 'language') {
-                    img.src = findImage(`/songs/images/flags/`, groupName);
-                } else if (mode === 'genre') {
-                    img.src = findImage(`/songs/images/genres/`, groupName);
-                } else if (mode === 'mood') {
-                    img.src = findImage(`/songs/images/moods/`, groupName);
-                } else {
-                    img.src = '';
-                }
-
-                if (img.src) {
-                    right.appendChild(img);
-                }
-
-                header.appendChild(right);
-                groupDiv.appendChild(header);
-
-                const ranContainer = document.createElement('ul');
-                ranContainer.className = 'ran-container';
-                groupDiv.appendChild(ranContainer);
-
-                container.appendChild(groupDiv);
-
-                const songs = grouped[groupName];
-                refreshRanList(songs);
-            });
-
-            adjustImageHeights();
-        }
-
-        function findImage(base, name) {
-            if (!name) return '';
-            const candidates = [
-                `${base}${name}.jpg`,
-                `${base}${name}.jpeg`,
-                `${base}${name}.png`,
-                `${base}${name}.bmp`,
-            ];
-            // devolvemos el primero; si falla, el onerror lo ocultará en CSS o podemos añadir manejo
-            return candidates[0];
+                if (['played', 'now_playing'].includes(song.state)) {
+                    el.classList.add('played');
+                    el.onclick = null;
+                    el.style.pointerEvents = 'none';
+                    el.style.cursor = 'not-allowed';
+                } else if (currentVotes[id]?.includes(deviceId)) el.classList.add('voted');
+                else if (selectedId === id) el.classList.add('selected');
+            }
         }
 
         function vote(id) {
             socket.emit('vote', {deviceId, songId: id});
             selectedId = null;
-            lastVotedId = id;
 
+            // eliminar voto anterior del dispositivo
             for (const songId in currentVotes) {
                 if (Array.isArray(currentVotes[songId])) {
                     currentVotes[songId] = currentVotes[songId].filter(d => d !== deviceId);
                 }
             }
+
+            // añadir nuevo voto
             if (!currentVotes[id]) currentVotes[id] = [];
             currentVotes[id].push(deviceId);
-            updateUI();
+
+            markAll();
         }
 
-        function updateUI() {
-            // Actualiza contadores en lista
-            document.querySelectorAll('#ranking li').forEach(li => {
-                const id = li.id;
-                const count = (currentVotes[id]?.length || 0);
-                const left = li.querySelector('.left');
-                if (left) left.textContent = count;
-            });
-        }
+        let lastVotedId = null;
 
-        async function loadCatalog() {
-            const res = await fetch('/catalog/catalog.json', {cache:'no-store'});
-            const cat = await res.json();
-            return cat;
-        }
+        function handleClick(id) {
+            if (songCatalog[id]?.state === 'played') return;
 
-        function groupBy(catalog, key) {
-            const groups = {};
-            catalog.forEach(song => {
-                const val = (song[key] || 'Unknown').toString();
-                if (!groups[val]) groups[val] = [];
-                groups[val].push(song);
-            });
-            return groups;
-        }
+            if (selectedId === id) {
+                if (lastVotedId && lastVotedId !== id) {
+                    updateSongState(lastVotedId, 'played');
+                }
+                vote(id);
+                updateSongState(id, 'voted');
+                lastVotedId = id;
+                selectedId = null;
+                markAll();
+            } else {
+                selectedId = id;
+                updateSongState(id, 'selected');
+                markAll();
+            }
 
-        async function fetchVotes() {
-            try {
-                const res = await fetch('/votes/by_device.json', {cache:'no-store'});
-                const data = await res.json();
-                currentVotes = {};
-                // Convertimos byDevice → por canción (para contadores)
-                Object.values(data || {}).forEach(entry => {
-                    if (!entry?.id) return;
-                    const id = entry.id;
-                    if (!currentVotes[id]) currentVotes[id] = [];
-                    currentVotes[id].push(entry.device);
-                });
-                updateUI();
-            } catch (e) {}
-        }
-
-        function setupSocket() {
-            socket.on('connect', () => {
-                // pedir estado inicial (si tienes esa ruta/evento)
-                socket.emit('update_request');
-            });
-
-            socket.on('update', payload => {
-                // payload: { counts, byDevice, states }
-                // Recalcular contadores desde byDevice:
-                const byDevice = payload?.byDevice || {};
-                currentVotes = {};
-                Object.values(byDevice).forEach(entry => {
-                    if (!entry?.id) return;
-                    const id = entry.id;
-                    if (!currentVotes[id]) currentVotes[id] = [];
-                    currentVotes[id].push(entry.device);
-                });
-                updateUI();
-            });
+            const ranFrame = document.getElementById("ranking-frame");
+            if (ranFrame && ranFrame.contentWindow && typeof ranFrame.contentWindow.markAll === "function") {
+                ranFrame.contentWindow.markAll();
+            }
         }
 
         async function init() {
-            catalog = await loadCatalog();
-            const mode = document.getElementById('grouping').value;
-            const grouped = groupBy(catalog, mode);
-            renderGroups(grouped);
+            const res = await fetch(CATALOG_URL);
+            const catalog = await res.json();
+            const container = document.getElementById('songs-container');
 
-            setupSocket();
-            await fetchVotes();
+            ORDER_KEY = document.getElementById('ord-select').value;
+            container.innerHTML = '';
+            const grouped = {};
+            catalog.sort((a, b) => a.title.localeCompare(b.title));
 
-            document.getElementById('grouping').addEventListener('change', async () => {
-                const mode = document.getElementById('grouping').value;
-                const grouped = groupBy(catalog, mode);
-                renderGroups(grouped);
+            catalog.forEach(song => {
+                let group = song[ORDER_KEY];
+                if (!group || group.trim() === '') group = '[Unknown]';
+                if (!grouped[group]) grouped[group] = [];
+                grouped[group].push(song);
+                songCatalog[song.id] = song;
             });
 
-            // LET controls
-            const lyricsWrapper = document.getElementById('lyrics-wrapper');
-            const lyricsContainer = document.getElementById('lyrics-container');
+            const keys = Object.keys(grouped).sort();
+            for (const artist of keys) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'group';
+                const groupHeader = document.createElement('h3');
 
-            function setLetMode(mode) {
-                // min → 0px; half → 40vh; max → 70vh (ejemplo)
-                if (mode === 'min') {
-                    lyricsWrapper.classList.add('hidden');
+                if (ORDER_KEY === "year") {
+                    const safeYear = parseInt(artist, 10);
+                    groupHeader.textContent = safeYear;
+
+                    const yearImg = document.createElement("img");
+                    yearImg.src = `/songs/images/year/${safeYear}.png`;
+                    yearImg.alt = safeYear;
+                    yearImg.style.marginLeft = "10px";
+                    groupHeader.appendChild(yearImg);
                 } else {
-                    lyricsWrapper.classList.remove('hidden');
-                    const vh = (mode === 'half') ? 40 : 70;
-                    lyricsContainer.style.maxHeight = vh + 'vh';
-                    lyricsContainer.style.overflow = 'auto';
+                    groupHeader.textContent = artist;
                 }
-                document.querySelectorAll('.let-btn').forEach(b => b.classList.remove('active'));
-                const btn = document.querySelector(`.let-btn[data-mode="${mode}"]`);
-                if (btn) btn.classList.add('active');
+
+                const safe = encodeURIComponent(artist);
+                const exts = [".jpg", ".jpeg", ".png"];
+                let inserted = false;
+
+                exts.forEach(ext => {
+                    const img = document.createElement("img");
+                    img.src = `/songs/images/${ORDER_KEY}/${safe}${ext}`;
+                    img.alt = artist;
+                    img.style.marginLeft = "10px";
+
+                    img.onload = () => {
+                        if (!inserted) {
+                            inserted = true;
+                            const imgContainer = document.createElement('div');
+                            imgContainer.className = 'group-right';
+                            imgContainer.appendChild(img);
+                            wrapper.appendChild(imgContainer);
+                            adjustImageHeights();
+                        }
+                    };
+
+                    img.onerror = () => {
+                        img.remove();
+                    };
+                });
+
+                const leftContainer = document.createElement('div');
+                leftContainer.className = 'group-left';
+                leftContainer.appendChild(groupHeader);
+                wrapper.appendChild(leftContainer);
+
+                grouped[artist].forEach(song => {
+                    const div = document.createElement('div');
+                    div.id = song.id;
+                    div.className = 'song';
+                    const label = song.title || '[No title]';
+                    div.textContent = label;
+                    div.onclick = () => handleClick(song.id);
+                    leftContainer.appendChild(div);
+                });
+                container.appendChild(wrapper);
+            }
+        }
+
+        socket.on('update', (data) => {
+            currentVotes = data.byDevice || {};
+            const counts = data.counts || {};
+            const states = data.states || {};
+
+            let newNowPlaying = null;
+            for (const id in songCatalog) {
+                songCatalog[id].state = states[id] || null;
+                if (songCatalog[id].state === 'now_playing') {
+                    newNowPlaying = id;
+                }
             }
 
-            document.querySelectorAll('.let-btn').forEach(btn => {
-                btn.addEventListener('click', () => setLetMode(btn.dataset.mode));
-            });
-            // estado inicial
-            setLetMode('min');
+            if (newNowPlaying !== nowPlayingId) {
+                nowPlayingId = newNowPlaying;
+                loadLyrics(nowPlayingId);
+            }
 
-            // Toggle ▲/▼ en header
+            markAll();
+            adjustImageHeights();
+        });
+
+        document.getElementById('ord-select').addEventListener('change', () => {
+            // LET toggle (duplicado arriba, se mantiene por compatibilidad)
             document.getElementById("toggle-lyrics").addEventListener("click", () => {
+                const container = document.getElementById("lyrics-container");
                 const btn = document.getElementById("toggle-lyrics");
-                if (lyricsWrapper.classList.contains('hidden')) {
-                    setLetMode('half');
-                    btn.textContent = '▼';
-                } else {
-                    setLetMode('min');
-                    btn.textContent = '▲';
-                }
+                container.classList.toggle("collapsed");
+                btn.textContent = container.classList.contains("collapsed") ? "▼" : "▲";
             });
+            init();
+        });
 
-            // También soportar el otro handler (si lo hay)
-            document.getElementById("toggle-lyrics").addEventListener("click", () => {
-                const btn = document.getElementById("toggle-lyrics");
-                if (lyricsWrapper.classList.contains('hidden')) {
-                    setLetMode('half');
-                    btn.textContent = '▼';
-                } else {
-                    setLetMode('min');
-                    btn.textContent = '▲';
-                }
-            });
-        }
+        // LET toggle
+        document.getElementById("toggle-lyrics").addEventListener("click", () => {
+            const container = document.getElementById("lyrics-container");
+            const btn = document.getElementById("toggle-lyrics");
+            container.classList.toggle("collapsed");
+            btn.textContent = container.classList.contains("collapsed") ? "▼" : "▲";
+        });
 
-        document.addEventListener('DOMContentLoaded', init);
+        init();
     </script>
-</div>
 
-<!-- RANKING (iframe) -->
-<div id="ranking">
-    <iframe id="ranking-frame" src="ran.html" frameborder="0"></iframe>
-</div>
+    <script>
+        function adjustImageHeights() {
+            document.querySelectorAll('.group').forEach(group => {
+                const header = group.querySelector('h3');
+                const firstSong = group.querySelector('.song');
+                const img = group.querySelector('.group-right img');
 
-<script>
-    function resizeRankingFrame() {
-        const iframe = document.getElementById('ranking-frame');
-        if (iframe && iframe.contentWindow && iframe.contentWindow.document.body) {
-            iframe.style.height = iframe.contentWindow.document.body.scrollHeight + "px";
+                if (header && firstSong && img) {
+                    const limit = header.offsetHeight + firstSong.offsetHeight;
+                    img.style.maxHeight = limit + "px";
+                }
+            });
         }
-    }
-    const iframe = document.getElementById('ranking-frame');
-    iframe.addEventListener("load", resizeRankingFrame);
-    // setInterval(resizeRankingFrame, 1000);
+
+        window.addEventListener('load', adjustImageHeights);
+        window.addEventListener('resize', adjustImageHeights);
+    </script>
+
+    <script>
+        function resizeRankingFrame() {
+            const iframe = document.getElementById('ranking-frame');
+            if (iframe && iframe.contentWindow && iframe.contentWindow.document.body) {
+                iframe.style.height = iframe.contentWindow.document.body.scrollHeight + "px";
+            }
+        }
+        const iframe = document.getElementById('ranking-frame');
+        iframe.addEventListener("load", resizeRankingFrame);
+        // opcional: si notas lag, comenta la línea siguiente:
+        // setInterval(resizeRankingFrame, 1000);
+
+    </script>
+
+    <script src="/songStates.js"></script>
+
+    <script>
+    (function() {
+      function fitSongLabels() {
+        var nodes = document.querySelectorAll('.song');
+        nodes.forEach(function(el) {
+          el.style.fontSize = '';
+          var computed = window.getComputedStyle(el);
+          var size = parseFloat(computed.fontSize) || 19;
+          var min = 9;
+          while (el.scrollWidth > el.clientWidth && size > min) {
+            size -= 1;
+            el.style.fontSize = size + 'px';
+          }
+        });
+      }
+      window.addEventListener('load', fitSongLabels);
+      window.addEventListener('resize', fitSongLabels);
+      var container = document.getElementById('songs-container');
+      if (container) {
+        new MutationObserver(fitSongLabels).observe(container, { childList: true, subtree: true });
+      }
+      window.fitSongLabels = fitSongLabels;
+    })();
+
 </script>
 
-<!-- Sugerencias al intérprete -->
-<div id="suggest-box">
-    <input id="suggest-input" type="text" placeholder="Suggest a song id...">
-    <button id="suggest-send" type="button">Send</button>
+<!-- Cajetín para propuestas -->
+<div id="suggest-box" style="margin:16px auto; padding:12px; border:1px solid #ccc; border-radius:10px; max-width:600px;">
+  <label for="suggest-title" style="font-weight:bold;">Suggest a song</label>
+  <input id="suggest-title" type="text" placeholder="Type a title…" style="margin-left:10px;"/>
+  <button id="suggest-send" type="button">Send</button>
+  <span id="suggest-msg" style="margin-left:8px;"></span>
 </div>
 
-<footer>
-    <div style="margin-top:12px;">
-        <strong>PTO: El Proyecto</strong> · 
-        Donaciones a PTO: 0034658327204 
-        <button type="button" onclick="copyPhone()" style="padding: 4px 10px; font-size: 0.95em; cursor: pointer;">Copiar</button>
-        · <a href="https://instagram.com" target="_blank" rel="noopener">Instagram</a>
-    </div>
-</footer>
+<hr style="margin-top: 40px;">
+
+<div style="text-align: center; padding: 20px; font-size: 1.1em;">
+  <a href="/pto.html" target="_blank" style="margin-right: 20px; font-weight: bold;">
+    PTO: El Proyecto
+  </a>
+
+  <span style="margin-right: 10px;">
+    Donaciones a PTO: <strong>Tel</strong> <span id="pto-phone">0034658327204</span>
+  </span>
+  <button type="button" onclick="copyPhone()" …>Copiar</button>
+  ``` :contentReference[oaicite:4]{index=4}
+
+  <a href="https://www.instagram.com/playthatone" target="_blank" style="margin-left: 20px; font-weight: bold;">
+    Instagram PTO
+  </a>
+</div>
 
 <script>
-    function copyPhone() {
-        navigator.clipboard.writeText('0034658327204');
-        alert('Teléfono copiado');
+(function(){
+  const $t = document.getElementById('suggest-title');
+  const $b = document.getElementById('suggest-send');
+  const $m = document.getElementById('suggest-msg');
+
+  async function sendProposal(){
+    const title = ($t.value || "").trim();
+    if (!title) { $t.focus(); return; }
+    $b.disabled = true; $m.textContent = "Sending…";
+    try {
+      const r = await fetch('/proposals', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({title})
+      });
+      if (!r.ok) throw new Error('net');
+      $t.value = "";
+      $m.textContent = "Thanks!";
+      setTimeout(()=>{$m.textContent="";}, 1500);
+    } catch(e) {
+      $m.textContent = "Error. Try again later.";
+    } finally {
+      $b.disabled = false;
     }
+  }
+
+  $b.addEventListener('click', sendProposal);
+  $t.addEventListener('keydown', (e)=>{ if(e.key==='Enter') sendProposal(); });
+})();
+</script>
+
+<script>
+  function copyPhone() {
+    const number = document.getElementById("pto-phone").textContent;
+    navigator.clipboard.writeText(number).then(() => {
+      alert("Número copiado al portapapeles.");
+    });
+  }
+</script>
+
+<!-- === LOGO auto-actualizable (fallback + cache-busting) === -->
+<script>
+(function () {
+  var el = document.getElementById('eventLogo') || document.getElementById('logo-right');
+  if (!el) return;
+  var ts = Date.now();
+  var exts = ['png','jpg','jpeg'];
+  var i = 0;
+  function tryNext() {
+    if (i >= exts.length) return;
+    var src = "/songs/images/event-logo." + exts[i++] + "?t=" + ts;
+    var test = new Image();
+    test.onload = function(){ el.src = src; };
+    test.onerror = tryNext;
+    test.src = src;
+  }
+  tryNext();
+})();
 </script>
 
 </body>
