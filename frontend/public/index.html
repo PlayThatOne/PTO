@@ -337,7 +337,7 @@
 
     <div id="songs-container"></div>
     <script>
-        window.socket = io({ transports: ['websocket'], upgrade: false });
+        window.socket = io();
         const socket = window.socket;
 
         let deviceId = localStorage.getItem('deviceId');
