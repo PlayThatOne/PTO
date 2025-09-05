@@ -170,7 +170,6 @@ body, #ranking-box, #ranking-top3, #ranking-rest {
 
 <div id="ranking-box">
     <h2>Ranking</h2>
-    <div id="now-playing">Now playing: <span id="now-title">—</span></div>
 
     <!-- Top 3 destacados -->
     <ul id="ranking-top3"></ul>
@@ -182,7 +181,7 @@ body, #ranking-box, #ranking-top3, #ranking-rest {
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
     const CATALOG_URL = "/catalog/catalog.json";
-    const socket = io({ transports: ['websocket'], upgrade: false });
+    const socket = io();  // vuelve a permitir polling/upgrade
 
     let songCatalog = {};
     let currentVotes = {};
