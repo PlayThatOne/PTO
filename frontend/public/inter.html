@@ -239,9 +239,9 @@
         }
       });
 
-      const voteRes = await fetch('/votes/counts.json');
-      const voteData = await voteRes.json();
-      renderVotedSongs(voteData.byDevice || {});
+      const byDevRes = await fetch('/votes/by_device.json');
+      const byDev = await byDevRes.json();    // { songId -> [devices] }
+      renderVotedSongs(byDev || {});
     }
 
     titleButton.addEventListener("click", () => {
