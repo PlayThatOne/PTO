@@ -222,7 +222,7 @@
         window.songCatalog[song.id] = { title: song.title, state: null };
       });
 
-      window.socket = io({ transports: ['websocket'], upgrade: false });
+      window.socket = io();  // vuelve a permitir polling/upgrade
         const socket = window.socket;
       socket.on("connect", () => console.log("WebSocket connected"));
 
