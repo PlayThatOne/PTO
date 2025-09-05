@@ -377,7 +377,13 @@ def create_app():
         for dev, song_id in votes.items():
             by_device.setdefault(song_id, []).append(dev)
 
-        socketio.emit("update", {"counts": counts, "byDevice": by_device, "states": states}, broadcast=True, include_self=True)
+        socketio.emit(
+            "update",
+            {"counts": counts, "byDevice": by_device, "states": states},
+            broadcast=True,
+            include_self=True,
+        )
+
         return jsonify({"status": "ok", "now_playing": new_id})
 
     @socketio.on("vote")
@@ -396,8 +402,21 @@ def create_app():
 
     @socketio.on("update_request")
     def handle_update_request():
-        votes = load_votes(); counts = count_votes(votes); states = load_states()
-        socketio.emit("update", {"counts": counts, "byDevice": votes, "states": states}, broadcast=True, include_self=True)
+        votes = load_votes()                # { device -> songId }
+        counts = count_votes(votes)
+        states = load_states()
+
+        # Unificar formato: byDevice = { songId -> [devices] }
+        by_device = {}
+        for dev, song_id in votes.items():
+            by_device.setdefault(song_id, []).append(dev)
+
+        socketio.emit(
+            "update",
+            {"counts": counts, "byDevice": by_device, "states": states},
+            broadcast=True,
+            include_self=True,
+        )
 
     # ===== CATALOGO =====
     @app.route("/refresh-catalog", methods=["POST"])  # protegido
