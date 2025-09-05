@@ -318,7 +318,7 @@
 <div id="lyrics-wrapper">
     <div id="lyrics-header">
         <span>Now Playing</span>
-        <button id="toggle-lyrics">▲</button>
+        <button id="toggle-lyrics" type="button">▲</button>
     </div>
     <div id="lyrics-container">
         Loading lyrics...
@@ -574,39 +574,6 @@
     </script>
 
     <script>
-        let lastVotedId = null;
-
-        function vote(id) {
-            socket.emit('vote', {deviceId, songId: id});
-            selectedId = null;
-            lastVotedId = id;
-
-            for (const songId in currentVotes) {
-                if (Array.isArray(currentVotes[songId])) {
-                    currentVotes[songId] = currentVotes[songId].filter(d => d !== deviceId);
-                }
-            }
-            if (!currentVotes[id]) currentVotes[id] = [];
-            currentVotes[id].push(deviceId);
-            markAll();
-        }
-
-        function refreshRanList(songs) {
-            const ranContainer = document.querySelector('.ran-container');
-            if (!ranContainer) return;
-            ranContainer.innerHTML = "";
-            songs.forEach(song => {
-                const element = createSongElement(song);
-                ranContainer.appendChild(element);
-            });
-            if (lastVotedId) {
-                const votedElement = document.getElementById(lastVotedId);
-                if (votedElement) votedElement.classList.add("voted");
-            }
-        }
-    </script>
-
-    <script>
         function resizeRankingFrame() {
             const iframe = document.getElementById('ranking-frame');
             if (iframe && iframe.contentWindow && iframe.contentWindow.document.body) {
@@ -615,7 +582,9 @@
         }
         const iframe = document.getElementById('ranking-frame');
         iframe.addEventListener("load", resizeRankingFrame);
-        setInterval(resizeRankingFrame, 1000);
+        // opcional: si notas lag, comenta la línea siguiente:
+        // setInterval(resizeRankingFrame, 1000);
+
     </script>
 
     <script src="/songStates.js"></script>
@@ -650,7 +619,7 @@
 <div id="suggest-box" style="margin:16px auto; padding:12px; border:1px solid #ccc; border-radius:10px; max-width:600px;">
   <label for="suggest-title" style="font-weight:bold;">Suggest a song</label>
   <input id="suggest-title" type="text" placeholder="Type a title…" style="margin-left:10px;"/>
-  <button id="suggest-send">Send</button>
+  <button id="suggest-send" type="button">Send</button>
   <span id="suggest-msg" style="margin-left:8px;"></span>
 </div>
 
@@ -664,9 +633,8 @@
   <span style="margin-right: 10px;">
     Donaciones a PTO: <strong>Tel</strong> <span id="pto-phone">0034658327204</span>
   </span>
-  <button onclick="copyPhone()" style="padding: 4px 10px; font-size: 0.95em; cursor: pointer;">
-    Copiar
-  </button>
+  <button type="button" onclick="copyPhone()" …>Copiar</button>
+  ``` :contentReference[oaicite:4]{index=4}
 
   <a href="https://www.instagram.com/playthatone" target="_blank" style="margin-left: 20px; font-weight: bold;">
     Instagram PTO
