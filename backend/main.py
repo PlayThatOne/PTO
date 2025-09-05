@@ -265,7 +265,23 @@ def create_app():
     def vote_counts():
         raw_votes = load_votes()
         counts = count_votes(raw_votes)
-        return jsonify(counts)
+        # IMPORTANTE: devolver bajo la clave 'counts'
+        return jsonify({"counts": counts})
+
+    @app.route("/votes/by_device.json")
+    def votes_by_device_json():
+        """
+        Devuelve { songId: [deviceId, ...] } a partir del storage { deviceId: songId }.
+        Si por compatibilidad alguna entrada viniera con objeto {'id': songId}, también lo aceptamos.
+        """
+        votes = load_votes() or {}
+        by_device = {}
+        for dev, val in votes.items():
+            sid = val.get("id") if isinstance(val, dict) else val
+            if not sid:
+                continue
+            by_device.setdefault(sid, []).append(dev)
+        return jsonify(by_device)
 
     @app.route("/votes/reset", methods=["GET","POST"])  # protegido
     def reset_votes():
@@ -275,6 +291,10 @@ def create_app():
         socketio.emit("update", {}, broadcast=True, include_self=True)
         socketio.emit("session_reset")
         return jsonify({"status": "ok", "message": "Votes reset"})
+
+    @app.route("/song_states.json")
+    def song_states_json():
+        return jsonify(load_states())
 
     @app.route("/songStates.js")
     def song_states_js():
