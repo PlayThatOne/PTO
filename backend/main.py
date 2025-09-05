@@ -398,7 +398,12 @@ def create_app():
             by_device.setdefault(song_id, []).append(dev)
         states = load_states()
         print(">> update:", {"counts": counts, "byDevice": by_device, "states": states})
-        socketio.emit("update", {"counts": counts, "byDevice": by_device, "states": states}, broadcast=True, include_self=True)
+        socketio.emit(
+            "update",
+            {"counts": counts, "byDevice": by_device, "states": states},
+            broadcast=True,
+            include_self=True,
+        )
 
     @socketio.on("update_request")
     def handle_update_request():
