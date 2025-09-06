@@ -13,7 +13,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import eventlet
 eventlet.monkey_patch()
 
-from flask import Flask, send_from_directory, jsonify, request, Blueprint
+from flask import Flask, send_from_directory, jsonify, request, Blueprint, session
 print(">> Flask importado")
 
 from backend.api.websockets import socketio
@@ -177,6 +177,11 @@ def create_app():
 
     # Sirve estáticos desde la raíz del sitio
     app = Flask(__name__, static_folder=str(PUBLIC_DIR), static_url_path="")
+    # Session config for admin auth overlay
+    app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev")
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_SECURE"] = True
+
     
     app.register_blueprint(ingest_bp)
     
@@ -188,6 +193,20 @@ def create_app():
     print(f">> index.html existe? {idx.exists()}  ({idx})")
 
     socketio.init_app(app, cors_allowed_origins="*")
+    # ---- AUTH endpoints ----
+    @app.post("/auth/login")
+    def auth_login():
+        data = request.get_json(silent=True) or {}
+        pwd = str(data.get("password") or "")
+        if pwd == os.environ.get("PTO_ADMIN_PASS"):
+            session["is_admin"] = True
+            return jsonify(ok=True)
+        return jsonify(ok=False), 401
+
+    @app.get("/auth/status")
+    def auth_status():
+        return jsonify(is_admin=bool(session.get("is_admin", False)))
+
     print(">> socketio registrado")
 
     # --- Asegurar CSV de catálogo en el Disk ---
