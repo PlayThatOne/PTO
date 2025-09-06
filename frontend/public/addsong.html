@@ -17,6 +17,20 @@
     #song-list input[type="checkbox"] { flex: 0 0 40px; margin-right: 0.5em; }
     #song-list span { flex: 1; white-space: normal; overflow: visible; text-overflow: clip; }
   </style>
+
+  <!-- 🔒 Overlay CSS (added) -->
+  <style>
+    .overlay{
+      position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+      background:rgba(0,0,0,.45); z-index:9999;
+    }
+    .overlay-content{
+      background:#fff; padding:20px; border-radius:12px; width:min(360px,90vw);
+      box-shadow:0 10px 30px rgba(0,0,0,.2); text-align:center;
+    }
+    .overlay-content input{ width:100%; padding:10px; margin:10px 0; }
+    .overlay-content button{ width:100%; padding:10px; }
+  </style>
 </head>
 <body>
   
@@ -28,6 +42,8 @@
     <button onclick="doLogin()">Login</button>
     <p id="login-error" style="color:red; display:none;">Wrong password</p>
   </div>
+</div>
+<!-- 🔒 Overlay de admin -->
 </div>
 
   <h1>Panel de Control</h1>
