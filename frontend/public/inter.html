@@ -222,8 +222,7 @@
         window.songCatalog[song.id] = { title: song.title, state: null };
       });
 
-      window.socket = io();  // vuelve a permitir polling/upgrade
-        const socket = window.socket;
+      const socket = io();
       socket.on("connect", () => console.log("WebSocket connected"));
 
       socket.on("update", data => {
@@ -239,9 +238,9 @@
         }
       });
 
-      const byDevRes = await fetch('/votes/by_device.json');
-      const byDev = await byDevRes.json();    // { songId -> [devices] }
-      renderVotedSongs(byDev || {});
+      const voteRes = await fetch('/votes/counts.json');
+      const voteData = await voteRes.json();
+      renderVotedSongs(voteData.byDevice || {});
     }
 
     titleButton.addEventListener("click", () => {
