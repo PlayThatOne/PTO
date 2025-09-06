@@ -92,8 +92,33 @@
     #autoscroll .play{ font-weight:700; }
     #autoscroll .active{ outline:2px solid #2e7d32; }
   </style>
+
+  <!-- 🔒 Overlay CSS (added) -->
+  <style>
+    .overlay{
+      position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+      background:rgba(0,0,0,.45); z-index:9999;
+    }
+    .overlay-content{
+      background:#fff; padding:20px; border-radius:12px; width:min(360px,90vw);
+      box-shadow:0 10px 30px rgba(0,0,0,.2); text-align:center;
+    }
+    .overlay-content input{ width:100%; padding:10px; margin:10px 0; }
+    .overlay-content button{ width:100%; padding:10px; }
+  </style>
 </head>
 <body>
+
+  <!-- 🔒 Admin overlay -->
+  <div id="admin-lock" class="overlay" style="display:none;">
+    <div class="overlay-content">
+      <h2>Admin login</h2>
+      <input type="password" id="admin-password" placeholder="Password" autocomplete="current-password">
+      <button onclick="doLogin()">Login</button>
+      <p id="login-error" style="color:red; display:none;">Wrong password</p>
+    </div>
+  </div>
+
 
   <div id="autoscroll" aria-label="Auto-scroll">
     <button id="as-play" class="play" title="Play/Stop">▶</button>
@@ -456,6 +481,35 @@
 })();
 </script>
 
+
+
+  <!-- 🔒 Login script -->
+  <script>
+  async function doLogin(){
+    const pwd=document.getElementById('admin-password')?document.getElementById('admin-password').value.trim():'';
+    try{
+      const res=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pwd})});
+      const data=await res.json();
+      if(res.ok&&data.ok){
+        var e=document.getElementById('login-error'); if(e) e.style.display='none';
+        var l=document.getElementById('admin-lock'); if(l) l.style.display='none';
+      }else{
+        var e=document.getElementById('login-error'); if(e) e.style.display='block';
+      }
+    }catch(e){
+      var e1=document.getElementById('login-error'); if(e1) e1.style.display='block';
+    }
+  }
+  async function checkAuth(){
+    try{
+      const r=await fetch('/auth/status'); const d=await r.json();
+      if(!d.is_admin){ var l=document.getElementById('admin-lock'); if(l) l.style.display='flex'; }
+    }catch(e){
+      var l=document.getElementById('admin-lock'); if(l) l.style.display='flex';
+    }
+  }
+  document.addEventListener('DOMContentLoaded',checkAuth);
+  </script>
 
 </body>
 </html>
