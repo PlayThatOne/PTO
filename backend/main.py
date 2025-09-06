@@ -132,9 +132,9 @@ def delete_proposal(slug):
     except Exception:
         pass
     return jsonify({"ok": True})
-
+    
 # =========================
-# Fetch metadata helpers
+# Fetch metadata (year, genre) from public APIs
 # =========================
 import urllib.parse, urllib.request
 
@@ -190,6 +190,7 @@ def create_app():
     socketio.init_app(app, cors_allowed_origins="*")
     print(">> socketio registrado")
 
+    # --- Asegurar CSV de catálogo en el Disk ---
     CORE_DIR = Path(__file__).resolve().parent / "core"  # backend/core (Disk)
     CATALOG_CSV = CORE_DIR / "catalog_postgres.csv"
     if not CATALOG_CSV.exists():
@@ -200,6 +201,7 @@ def create_app():
     else:
         print(f">> encontrado {CATALOG_CSV}")
 
+    # --- Carpetas PERSISTENTES en el Disk para letras/tabs/imagenes ---
     LYRICS_DIR     = CORE_DIR / "songs" / "lyrics"
     TABS_DIR       = CORE_DIR / "songs" / "tabs"
     IMAGES_DIR     = CORE_DIR / "images"
@@ -226,17 +228,65 @@ def create_app():
     @app.route("/addsong.html")
     def addsong():
         return send_from_directory(str(PUBLIC_DIR), "addsong.html")
+        
+    @app.route("/update-song", methods=["POST"])
+    def update_song():
+        """Actualizar UN campo de una canción por ID (sin tocar letra/tab)."""
+        try:
+            data = request.get_json(force=True)
+            song_id = (data.get("id") or "").strip()
+            field   = (data.get("field") or "").strip()
+            value   = data.get("value")
+            # normaliza strings
+            if isinstance(value, str):
+                value = value.strip()
+
+            allowed = ["name","artist","year","language","genre","duration","mood","key","tempo","enabled"]
+            if not song_id or field not in allowed:
+                return "Parámetros inválidos (id/field). Campos válidos: " + ", ".join(allowed), 400
+
+            # leer CSV actual
+            with open(CATALOG_CSV, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f, delimiter=";")
+                fieldnames = reader.fieldnames or (["id"] + allowed)
+                rows = list(reader)
+
+            # aplicar cambio
+            found = False
+            for row in rows:
+                if (row.get("id") or "").strip() == song_id:
+                    row[field] = "" if value is None else str(value)
+                    found = True
+                    break
+
+            if not found:
+                return f"ID no encontrado: {song_id}", 404
+
+            # escribir CSV
+            tmp = Path(str(CATALOG_CSV) + ".tmp")
+            with open(tmp, "w", newline="", encoding="utf-8") as f:
+                w = csv.DictWriter(f, fieldnames=fieldnames, delimiter=";")
+                w.writeheader()
+                for r in rows:
+                    w.writerow(r)
+
+            os.replace(tmp, CATALOG_CSV)
+            return f"✅ Actualizado '{field}' de '{song_id}'.", 200
+
+        except Exception as e:
+            return f"❌ Error al actualizar: {str(e)}", 500
 
     @app.route("/ran.html")
     def ran():
         return send_from_directory(str(PUBLIC_DIR), "ran.html")
 
-    # ===== SONGS (Disk primero, luego repo) =====
+    # ===== RUTAS SONGS (primero Disk, luego repo como fallback) =====
     @app.route("/songs/lyrics/<filename>")
     def serve_lyrics(filename):
         p = LYRICS_DIR / filename
         if p.exists():
             return send_from_directory(str(LYRICS_DIR), filename)
+        # fallback a repo
         repo_dir = PROJECT_ROOT / "songs" / "lyrics"
         return send_from_directory(str(repo_dir), filename)
 
@@ -245,6 +295,7 @@ def create_app():
         p = TABS_DIR / filename
         if p.exists():
             return send_from_directory(str(TABS_DIR), filename)
+        # fallback a repo
         repo_dir = PROJECT_ROOT / "songs" / "tabs"
         return send_from_directory(str(repo_dir), filename)
 
@@ -253,6 +304,7 @@ def create_app():
         p = IMAGES_DIR / filename
         if p.exists():
             return send_from_directory(str(IMAGES_DIR), filename)
+        # fallback a repo
         repo_dir = PROJECT_ROOT / "songs" / "images"
         return send_from_directory(str(repo_dir), filename)
 
@@ -265,36 +317,16 @@ def create_app():
     def vote_counts():
         raw_votes = load_votes()
         counts = count_votes(raw_votes)
-        # IMPORTANTE: devolver bajo la clave 'counts'
-        return jsonify({"counts": counts})
+        return jsonify(counts)
 
-    @app.route("/votes/by_device.json")
-    def votes_by_device_json():
-        """
-        Devuelve { songId: [deviceId, ...] } a partir del storage { deviceId: songId }.
-        Si por compatibilidad alguna entrada viniera con objeto {'id': songId}, también lo aceptamos.
-        """
-        votes = load_votes() or {}
-        by_device = {}
-        for dev, val in votes.items():
-            sid = val.get("id") if isinstance(val, dict) else val
-            if not sid:
-                continue
-            by_device.setdefault(sid, []).append(dev)
-        return jsonify(by_device)
-
-    @app.route("/votes/reset", methods=["GET","POST"])  # protegido
+    @app.route("/votes/reset")
     def reset_votes():
         from backend.services.vote_logic import save_states
         save_votes({})
         save_states({})
-        socketio.emit("update", {}, broadcast=True, include_self=True)
+        socketio.emit("update", {})
         socketio.emit("session_reset")
         return jsonify({"status": "ok", "message": "Votes reset"})
-
-    @app.route("/song_states.json")
-    def song_states_json():
-        return jsonify(load_states())
 
     @app.route("/songStates.js")
     def song_states_js():
@@ -304,8 +336,8 @@ def create_app():
     def favicon():
         return "", 204
 
-    # ===== AÑADIR/ACTUALIZAR CANCIÓN =====
-    @app.route("/add-song", methods=["POST"])  # protegido
+    # ======= AÑADIR/ACTUALIZAR CANCIÓN con detección de conflicto =======
+    @app.route("/add-song", methods=["POST"])
     def add_song():
         try:
             data = request.get_json(force=True)
@@ -314,6 +346,8 @@ def create_app():
                 return "ID de canción no especificado", 400
 
             catalog_csv = CATALOG_CSV
+
+            # ¿Existe ya este ID?
             existing = None
             if catalog_csv.exists():
                 with open(catalog_csv, newline="", encoding="utf-8") as f:
@@ -323,23 +357,32 @@ def create_app():
                             existing = row
                             break
 
+            # Si existe y NO viene 'overwrite', devolvemos conflicto con info (409)
             if existing and not data.get("overwrite"):
                 return jsonify({
                     "status": "conflict",
                     "message": f"Ya existe el ID {song_id}",
                     "id": song_id,
-                    "existing": {"id": existing.get("id", ""), "name": existing.get("name", ""), "artist": existing.get("artist", "")}
+                    "existing": {
+                        "id": existing.get("id", ""),
+                        "name": existing.get("name", ""),
+                        "artist": existing.get("artist", "")
+                    }
                 }), 409
 
             fieldnames = ["id","name","artist","year","language","genre","duration","mood","key","tempo","enabled"]
 
             if existing and data.get("overwrite"):
+                # Sobrescribir: reescribir el CSV sustituyendo la fila del ID
                 with open(catalog_csv, newline="", encoding="utf-8") as f:
                     rows = list(csv.DictReader(f, delimiter=";"))
+
+                # Fila nueva (si algún campo viene vacío, lo dejamos vacío)
                 newrow = {k: (data.get(k) if data.get(k) not in [None, ""] else "") for k in fieldnames}
                 newrow["id"] = song_id
                 if not newrow.get("enabled"):
                     newrow["enabled"] = (existing.get("enabled") or "Y")
+
                 with open(catalog_csv, "w", newline="", encoding="utf-8") as f:
                     w = csv.DictWriter(f, fieldnames=fieldnames, delimiter=";")
                     w.writeheader()
@@ -348,19 +391,33 @@ def create_app():
                             w.writerow({k: newrow.get(k, "") for k in fieldnames})
                         else:
                             w.writerow({k: row.get(k, "") for k in fieldnames})
+
                 status_msg = "✅ Canción actualizada (sobrescrita)."
+
             elif not existing:
+                # Añadir nueva fila
                 with open(catalog_csv, "a", newline="", encoding="utf-8") as csvfile:
                     writer = csv.writer(csvfile, delimiter=";")
                     writer.writerow([
-                        data.get("id", ""), data.get("name", ""), data.get("artist", ""), data.get("year", ""),
-                        data.get("language", ""), data.get("genre", ""), data.get("duration", ""), data.get("mood", ""),
-                        data.get("key", ""), data.get("tempo", ""), "Y",
+                        data.get("id", ""),
+                        data.get("name", ""),
+                        data.get("artist", ""),
+                        data.get("year", ""),
+                        data.get("language", ""),
+                        data.get("genre", ""),
+                        data.get("duration", ""),
+                        data.get("mood", ""),
+                        data.get("key", ""),
+                        data.get("tempo", ""),
+                        "Y",
                     ])
                 status_msg = "✅ Canción añadida correctamente."
+
             else:
+                # Caso teórico (existing sin overwrite ya devolvió 409)
                 status_msg = "ℹ️ Nada que hacer."
 
+            # Guardar letra/tab SOLO si añadimos o si se sobrescribe
             if not existing or data.get("overwrite"):
                 if "lyrics" in data:
                     (LYRICS_DIR / f"{song_id}.txt").parent.mkdir(parents=True, exist_ok=True)
@@ -372,11 +429,12 @@ def create_app():
                         f.write((data.get("tab") or "").strip())
 
             return status_msg, 200
+
         except Exception as e:
             return f"❌ Error al añadir/actualizar canción: {str(e)}", 500
 
     # ===== VOTING / SOCKETS =====
-    @app.route("/votes/now_playing", methods=["POST"])  # protegido
+    @app.route("/votes/now_playing", methods=["POST"])
     def set_now_playing():
         from backend.services.vote_logic import save_states
         data = request.get_json()
@@ -397,54 +455,41 @@ def create_app():
         for dev, song_id in votes.items():
             by_device.setdefault(song_id, []).append(dev)
 
-        socketio.emit(
-            "update",
-            {"counts": counts, "byDevice": by_device, "states": states},
-            broadcast=True,
-            include_self=True,
-        )
-
+        socketio.emit("update", {
+            "counts": counts,
+            "byDevice": by_device,
+            "states": states
+        })
         return jsonify({"status": "ok", "now_playing": new_id})
 
     @socketio.on("vote")
     def handle_vote(data):
-        device = data.get("deviceId"); song = data.get("songId")
+        device = data.get("deviceId")
+        song = data.get("songId")
         if not device or not song:
             return
-        votes = load_votes(); votes[device] = song; save_votes(votes)
+        votes = load_votes()
+        votes[device] = song
+        save_votes(votes)
+
         counts = count_votes(votes)
         by_device = {}
         for dev, song_id in votes.items():
             by_device.setdefault(song_id, []).append(dev)
         states = load_states()
+
         print(">> update:", {"counts": counts, "byDevice": by_device, "states": states})
-        socketio.emit(
-            "update",
-            {"counts": counts, "byDevice": by_device, "states": states},
-            broadcast=True,
-            include_self=True,
-        )
+        socketio.emit("update", {"counts": counts, "byDevice": by_device, "states": states})
 
     @socketio.on("update_request")
     def handle_update_request():
-        votes = load_votes()                # { device -> songId }
+        votes = load_votes()
         counts = count_votes(votes)
         states = load_states()
-
-        # Unificar formato: byDevice = { songId -> [devices] }
-        by_device = {}
-        for dev, song_id in votes.items():
-            by_device.setdefault(song_id, []).append(dev)
-
-        socketio.emit(
-            "update",
-            {"counts": counts, "byDevice": by_device, "states": states},
-            broadcast=True,
-            include_self=True,
-        )
+        socketio.emit("update", {"counts": counts, "byDevice": votes, "states": states})
 
     # ===== CATALOGO =====
-    @app.route("/refresh-catalog", methods=["POST"])  # protegido
+    @app.route("/refresh-catalog", methods=["POST"])
     def refresh_catalog():
         import subprocess
         try:
@@ -461,25 +506,25 @@ def create_app():
     def missing_artist_photos():
         try:
             catalog_path = PUBLIC_DIR / "catalog" / "catalog.json"
+
             with open(catalog_path, "r", encoding="utf-8") as f:
                 catalog = json.load(f)
+
             missing = []
             for song in catalog:
                 artist = (song.get("artist") or "").strip()
                 if not artist:
                     continue
+                # Busca primero en Disk, luego en repo
                 has_image = any((ARTIST_IMG_DIR / f"{artist}{ext}").exists() for ext in [".jpg", ".jpeg", ".png"]) \
-                            or any((PROJECT_ROOT / "songs" / "images" / "artist" / f"{artist}{ext}").exists() for ext in [".jpg", ".jpeg", ".png"])
+                            or any((PROJECT_ROOT / "songs" / "images" / "artist" / f"{artist}{ext}").exists()
+                                   for ext in [".jpg", ".jpeg", ".png"])
                 if not has_image and artist not in missing:
                     missing.append(artist)
+
             return jsonify(missing)
         except Exception as e:
             return jsonify({"error": str(e)}), 500
-
-    # Alias para addsong
-    @app.route("/authors/missing")
-    def authors_missing_alias():
-        return missing_artist_photos()
 
     @app.route("/edit-catalog")
     def edit_catalog():
@@ -487,12 +532,13 @@ def create_app():
         catalog_csv = CATALOG_CSV
         return send_file(str(catalog_csv), as_attachment=False)
 
-    @app.route("/upload-catalog", methods=["POST"])  # protegido + acepta 'file' o 'catalog'
+    @app.route("/upload-catalog", methods=["POST"])
     def upload_catalog():
         try:
-            file = request.files.get("catalog") or request.files.get("file")
+            file = request.files["catalog"]
             if not file:
                 return "No se recibió ningún archivo", 400
+            # (Ahora mismo: sobrescribe archivo. Si quieres fusión, te paso el bloque cuando me digas)
             save_path = CATALOG_CSV
             file.save(str(save_path))
             return "✅ Catálogo actualizado correctamente."
@@ -519,7 +565,7 @@ def create_app():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    @app.route("/delete-songs", methods=["POST"])  # protegido
+    @app.route("/delete-songs", methods=["POST"])
     def delete_songs():
         try:
             data = request.get_json(force=True) or {}
@@ -527,7 +573,12 @@ def create_app():
             if not ids:
                 return "No has pasado IDs", 400
 
-            catalog_path = CATALOG_CSV
+            # Rutas base
+            BASE_DIR = os.path.dirname(__file__)
+            CORE_DIR = os.path.join(BASE_DIR, "core")
+            catalog_path = os.path.join(CORE_DIR, "catalog_postgres.csv")
+
+            # 1) Detectar separador y cabecera reales
             with open(catalog_path, "r", encoding="utf-8", newline="") as f:
                 header_line = f.readline().strip()
                 delim = ";" if header_line.count(";") >= header_line.count(",") else ","
@@ -536,18 +587,21 @@ def create_app():
                 reader = csv.DictReader(f, delimiter=delim)
                 rows = []
                 for r in reader:
+                    # Quitar la clave None (campos extra) si aparece
                     if None in r:
                         r.pop(None, None)
+                    # Mantener las filas cuyo id NO esté en la lista a borrar
                     if (r.get("id") or "").strip() not in ids:
                         rows.append(r)
 
+            # 2) Reescribir CSV limpio (ignorando cualquier campo extra)
             with open(catalog_path, "w", encoding="utf-8", newline="") as f:
                 writer = csv.DictWriter(f, fieldnames=header, delimiter=delim, extrasaction="ignore")
                 writer.writeheader()
                 for r in rows:
                     writer.writerow(r)
 
-            # Borrar archivos en public (fallback)
+            # 3) Borrar archivos públicos TAB/Lyrics
             FRONTEND_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend")
             PUB_TABS_DIR = os.path.join(FRONTEND_DIR, "public", "songs", "tabs")
             PUB_LYRICS_DIR = os.path.join(FRONTEND_DIR, "public", "songs", "lyrics")
@@ -565,14 +619,10 @@ def create_app():
                         pass
 
             return f"OK. {len(ids)} canciones borradas. Archivos eliminados: {', '.join(removed_files) or '—'}"
+
         except Exception as e:
             print(">> /delete-songs error:", e)
             return f"Error al borrar canciones: {e}", 500
-
-    # Aliases para addsong.html
-    @app.post('/songs/delete',)
-    def delete_songs_alias():
-        return delete_songs()
 
     @app.route("/get-song-status")
     def get_song_status():
@@ -592,7 +642,7 @@ def create_app():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    @app.route("/update-enabled", methods=["POST"])  # protegido
+    @app.route("/update-enabled", methods=["POST"])
     def update_enabled_status():
         try:
             data = request.get_json()
@@ -618,15 +668,12 @@ def create_app():
         except Exception as e:
             return f"❌ Error al actualizar estado: {str(e)}", 500
 
-    @app.post('/songs/enabled')
-    def update_enabled_alias():
-        return update_enabled_status()
-
     @app.route("/catalog/fields.json")
     def catalog_fields():
         try:
             from collections import defaultdict
             csv_path = CATALOG_CSV
+
             fields = ["artist", "year", "language", "genre", "mood", "key"]
             values = defaultdict(set)
             with open(csv_path, newline="", encoding="utf-8") as f:
@@ -675,28 +722,5 @@ def create_app():
             return "✅ Imagen subida correctamente."
         except Exception as e:
             return f"❌ Error al subir imagen: {str(e)}", 500
-
-    # === Create/overwrite TAB & lyrics files (Addsong → Paste & Add) ===
-    @app.post('/create-files')
-    def create_files():
-        try:
-            data = request.get_json(force=True) or {}
-            sid = (data.get('id') or '').strip()
-            if not sid:
-                return jsonify({'ok': False, 'error': 'missing_id'}), 400
-
-            if 'lyrics' in data:
-                (LYRICS_DIR / f"{sid}.txt").parent.mkdir(parents=True, exist_ok=True)
-                with open(LYRICS_DIR / f"{sid}.txt", 'w', encoding='utf-8') as f:
-                    f.write((data.get('lyrics') or '').strip())
-
-            if 'tab' in data:
-                (TABS_DIR / f"TAB{sid}.txt").parent.mkdir(parents=True, exist_ok=True)
-                with open(TABS_DIR / f"TAB{sid}.txt", 'w', encoding='utf-8') as f:
-                    f.write((data.get('tab') or '').strip())
-
-            return jsonify({'ok': True})
-        except Exception as e:
-            return jsonify({'ok': False, 'error': str(e)}), 500
 
     return app
