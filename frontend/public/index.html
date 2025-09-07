@@ -337,7 +337,7 @@
 
     <div id="songs-container"></div>
     <script>
-        const socket = io();
+        const socket = window.io();
 
         let deviceId = localStorage.getItem('deviceId');
         if (!deviceId) {
@@ -477,7 +477,7 @@
 
                 const candidates = [
                   `/songs/images/${ORDER_KEY}/${safe}.webp`,
-                  `/songs/images/${ORDER_KEY}/${safe}.jpg}`,
+                  `/songs/images/${ORDER_KEY}/${safe}.jpg`,
                   `/songs/images/${ORDER_KEY}/${safe}.png`
                 ];
 
@@ -568,7 +568,7 @@
         });
         
         // Carga diferida de imágenes
-        const io = new IntersectionObserver((entries)=>{
+        const imgIO = new IntersectionObserver((entries)=>{
           entries.forEach(e=>{
             if (e.isIntersecting) {
               const img = e.target;
@@ -576,10 +576,11 @@
                 img.src = img.dataset.src;
                 img.removeAttribute('data-src');
               }
-              io.unobserve(img);
+              imgIO.unobserve(img);
             }
           });
         }, {rootMargin: '200px 0px'});
+
         function makeLazyImg(src, alt){
           const img = document.createElement('img');
           img.loading = 'lazy';
@@ -588,7 +589,7 @@
           img.width = 400;  // tamaño lógico para reservar espacio
           img.height = 300;
           img.dataset.src = src;
-          io.observe(img);
+          imgIO.observe(img);
           return img;
         }
 
