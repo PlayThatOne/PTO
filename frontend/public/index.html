@@ -470,7 +470,13 @@
                 const safe = encodeURIComponent(artist);
                 let inserted = false;
 
-                // ⬇️ crear contenedor a la derecha YA (evita saltos de layout)
+                // primero el panel de la izquierda (título + canciones)
+                const leftContainer = document.createElement('div');
+                leftContainer.className = 'group-left';
+                leftContainer.appendChild(groupHeader);
+                wrapper.appendChild(leftContainer);
+
+                // ahora el contenedor de la imagen (derecha)
                 const imgContainer = document.createElement('div');
                 imgContainer.className = 'group-right';
                 wrapper.appendChild(imgContainer);
@@ -493,13 +499,13 @@
                   img.height = 300;
                   img.style.marginLeft = "10px";
                   img.src = candidates[idx++];
-
+                
+                  // IMPORTANTE: añadir al DOM YA para que el navegador empiece a cargar
+                  imgContainer.innerHTML = '';
+                  imgContainer.appendChild(img);
+                
                   img.onload = () => {
-                    if (inserted) return;
                     inserted = true;
-                    // ⬇️ solo rellenar el contenedor ya existente
-                    imgContainer.innerHTML = '';
-                    imgContainer.appendChild(img);
                     if (typeof adjustImageHeights === 'function') adjustImageHeights();
                   };
 
@@ -507,11 +513,6 @@
                 }
 
                 tryNext();
-
-                const leftContainer = document.createElement('div');
-                leftContainer.className = 'group-left';
-                leftContainer.appendChild(groupHeader);
-                wrapper.appendChild(leftContainer);
 
                 grouped[artist].forEach(song => {
                     const div = document.createElement('div');
