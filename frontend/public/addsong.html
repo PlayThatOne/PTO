@@ -454,11 +454,8 @@
           button.style.transition = "background 0.3s";
 
           button.addEventListener("click", () => {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.accept = ".jpg,.jpeg,.png,.bmp";
-            input.onchange = () => uploadArtistPhoto(artist, input.files[0], button);
-            input.click();
+            const url = "https://www.google.com/search?tbm=isch&q=" + encodeURIComponent(artist);
+            window.open(url, "_blank", "noopener");
           });
           button.addEventListener("dragover", e => { e.preventDefault(); button.style.background = "#cce5cc"; });
           button.addEventListener("dragleave", () => { button.style.background = "#f9f9f9"; });
