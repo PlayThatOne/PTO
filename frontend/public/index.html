@@ -468,30 +468,45 @@
                 }
 
                 const safe = encodeURIComponent(artist);
-                const exts = [".jpg", ".jpeg", ".png"];
                 let inserted = false;
 
-                exts.forEach(ext => {
-                    const img = document.createElement("img");
-                    img.src = `/songs/images/${ORDER_KEY}/${safe}${ext}`;
-                    img.alt = artist;
-                    img.style.marginLeft = "10px";
+                // ⬇️ crear contenedor a la derecha YA (evita saltos de layout)
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'group-right';
+                wrapper.appendChild(imgContainer);
 
-                    img.onload = () => {
-                        if (!inserted) {
-                            inserted = true;
-                            const imgContainer = document.createElement('div');
-                            imgContainer.className = 'group-right';
-                            imgContainer.appendChild(img);
-                            wrapper.appendChild(imgContainer);
-                            adjustImageHeights();
-                        }
-                    };
+                const candidates = [
+                  `/songs/images/${ORDER_KEY}/${safe}.webp`,
+                  `/songs/images/${ORDER_KEY}/${safe}.jpg}`,
+                  `/songs/images/${ORDER_KEY}/${safe}.png`
+                ];
 
-                    img.onerror = () => {
-                        img.remove();
-                    };
-                });
+                let idx = 0;
+                function tryNext() {
+                  if (inserted || idx >= candidates.length) return;
+
+                  const img = document.createElement("img");
+                  img.alt = artist;
+                  img.loading = "lazy";
+                  img.decoding = "async";
+                  img.width = 400;    // reserva espacio -> evita saltos
+                  img.height = 300;
+                  img.style.marginLeft = "10px";
+                  img.src = candidates[idx++];
+
+                  img.onload = () => {
+                    if (inserted) return;
+                    inserted = true;
+                    // ⬇️ solo rellenar el contenedor ya existente
+                    imgContainer.innerHTML = '';
+                    imgContainer.appendChild(img);
+                    if (typeof adjustImageHeights === 'function') adjustImageHeights();
+                  };
+
+                  img.onerror = () => { tryNext(); };
+                }
+
+                tryNext();
 
                 const leftContainer = document.createElement('div');
                 leftContainer.className = 'group-left';
@@ -551,6 +566,31 @@
             container.classList.toggle("collapsed");
             btn.textContent = container.classList.contains("collapsed") ? "▼" : "▲";
         });
+        
+        // Carga diferida de imágenes
+        const io = new IntersectionObserver((entries)=>{
+          entries.forEach(e=>{
+            if (e.isIntersecting) {
+              const img = e.target;
+              if (img.dataset.src) {
+                img.src = img.dataset.src;
+                img.removeAttribute('data-src');
+              }
+              io.unobserve(img);
+            }
+          });
+        }, {rootMargin: '200px 0px'});
+        function makeLazyImg(src, alt){
+          const img = document.createElement('img');
+          img.loading = 'lazy';
+          img.decoding = 'async';
+          img.alt = alt;
+          img.width = 400;  // tamaño lógico para reservar espacio
+          img.height = 300;
+          img.dataset.src = src;
+          io.observe(img);
+          return img;
+        }
 
         init();
     </script>
