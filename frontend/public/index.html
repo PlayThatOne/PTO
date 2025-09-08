@@ -349,9 +349,7 @@
         const songCatalog = {};
         let currentVotes = {};
         let selectedId = null;
-        let nowPlayingId = null;
-        let ORDER_KEY = 'artist';
-
+        let nowPlayingId = null;        
         async function loadLyrics(songId) {
             if (!songId) {
                 document.getElementById('lyrics-container').textContent = 'No song playing.';
@@ -447,6 +445,16 @@
                 grouped[group].push(song);
                 songCatalog[song.id] = song;
             });
+            // Cargar manifest solo cuando el orden es por artista
+            let artistImgManifest = {};
+            try {
+              if (ORDER_KEY === 'artist') {
+                const r = await fetch('/songs/images/artist/manifest.json', { cache: 'no-store' });
+                if (r.ok) artistImgManifest = await r.json();
+              }
+            } catch (e) {
+              artistImgManifest = {};
+            }
 
             const keys = Object.keys(grouped).sort();
             for (const artist of keys) {
@@ -476,43 +484,35 @@
                 leftContainer.appendChild(groupHeader);
                 wrapper.appendChild(leftContainer);
 
-                // ahora el contenedor de la imagen (derecha)
-                const imgContainer = document.createElement('div');
-                imgContainer.className = 'group-right';
-                wrapper.appendChild(imgContainer);
+               // primero la columna izquierda (título + canciones)
+               const leftContainer = document.createElement('div');
+               leftContainer.className = 'group-left';
+               leftContainer.appendChild(groupHeader);
+               wrapper.appendChild(leftContainer);
+               
+               // ahora la derecha (imagen)
+               const imgContainer = document.createElement('div');
+               imgContainer.className = 'group-right';
+               wrapper.appendChild(imgContainer);
 
-                const candidates = [
-                  `/songs/images/${ORDER_KEY}/${safe}.webp`,
-                  `/songs/images/${ORDER_KEY}/${safe}.jpg`,
-                  `/songs/images/${ORDER_KEY}/${safe}.png`
-                ];
+               // si el orden es 'artist' y hay entrada en manifest, ponemos esa imagen directamente
+               if (ORDER_KEY === 'artist') {
+                 const file = artistImgManifest[artist]; // p.ej. 'John%20Lennon.jpg'
+                 if (file) {
+                   const img = document.createElement('img');
+                   img.alt = artist;
+                   img.loading = 'lazy';
+                   img.decoding = 'async';
+                   img.width = 400;  // reservar sitio
+                   img.height = 300;
+                   img.style.marginLeft = '10px';
+                   img.src = `/songs/images/artist/${file}`;
+                   imgContainer.appendChild(img);
+                   if (typeof adjustImageHeights === 'function') adjustImageHeights();
+                 }
+               }
+               // si el orden no es 'artist', puedes dejar sin imagen o tu lógica anterior específica (por año/lengua/etc.)
 
-                let idx = 0;
-                function tryNext() {
-                  if (inserted || idx >= candidates.length) return;
-
-                  const img = document.createElement("img");
-                  img.alt = artist;
-                  img.loading = "lazy";
-                  img.decoding = "async";
-                  img.width = 400;    // reserva espacio -> evita saltos
-                  img.height = 300;
-                  img.style.marginLeft = "10px";
-                  img.src = candidates[idx++];
-                
-                  // IMPORTANTE: añadir al DOM YA para que el navegador empiece a cargar
-                  imgContainer.innerHTML = '';
-                  imgContainer.appendChild(img);
-                
-                  img.onload = () => {
-                    inserted = true;
-                    if (typeof adjustImageHeights === 'function') adjustImageHeights();
-                  };
-
-                  img.onerror = () => { tryNext(); };
-                }
-
-                tryNext();
 
                 grouped[artist].forEach(song => {
                     const div = document.createElement('div');
