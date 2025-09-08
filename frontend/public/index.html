@@ -437,6 +437,16 @@
             container.innerHTML = '';
             const grouped = {};
             catalog.sort((a, b) => a.title.localeCompare(b.title));
+            // Manifest de miniaturas (solo si el orden es por artista)
+            let artistThumbsManifest = {};
+            try {
+                if (ORDER_KEY === 'artist') {
+                    const r = await fetch('/songs/images/artist_thumbs/manifest.json', { cache: 'no-store' });
+                    if (r.ok) artistThumbsManifest = await r.json();
+                }
+            } catch (e) {
+                artistThumbsManifest = {};
+            }
 
             catalog.forEach(song => {
                 let group = song[ORDER_KEY];
@@ -478,33 +488,35 @@
                 const safe = encodeURIComponent(artist);
                 let inserted = false;
 
-                // primero el panel de la izquierda (título + canciones)
+                // Primero la columna izquierda (título + canciones)
                 const leftContainer = document.createElement('div');
                 leftContainer.className = 'group-left';
                 leftContainer.appendChild(groupHeader);
                 wrapper.appendChild(leftContainer);
-               
-               // ahora la derecha (imagen)
-               const imgContainer = document.createElement('div');
-               imgContainer.className = 'group-right';
-               wrapper.appendChild(imgContainer);
 
-               // si el orden es 'artist' y hay entrada en manifest, ponemos esa imagen directamente
-               if (ORDER_KEY === 'artist') {
-                 const file = artistImgManifest[artist]; // p.ej. 'John%20Lennon.jpg'
-                 if (file) {
-                   const img = document.createElement('img');
-                   img.alt = artist;
-                   img.loading = 'lazy';
-                   img.decoding = 'async';
-                   img.width = 400;  // reservar sitio
-                   img.height = 300;
-                   img.style.marginLeft = '10px';
-                   img.src = `/songs/images/artist/${file}`;
-                   imgContainer.appendChild(img);
-                   if (typeof adjustImageHeights === 'function') adjustImageHeights();
-                 }
-               }
+                // Ahora la derecha (imagen)
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'group-right';
+                wrapper.appendChild(imgContainer);
+
+                if (ORDER_KEY === 'artist') {
+                    // Buscar entrada exacta en el manifest
+                    const file = artistThumbsManifest[artist] || null;
+
+                    if (file) {
+                        const img = document.createElement('img');
+                        img.alt = artist;
+                        img.loading = 'lazy';
+                        img.decoding = 'async';
+                        img.width = 400;
+                        img.height = 300;
+                        img.style.marginLeft = '10px';
+                        img.src = `/songs/images/artist_thumbs/${file}`;
+                        imgContainer.appendChild(img);
+                        if (typeof adjustImageHeights === 'function') adjustImageHeights();
+                    }
+                }
+
                // si el orden no es 'artist', puedes dejar sin imagen o tu lógica anterior específica (por año/lengua/etc.)
 
 
