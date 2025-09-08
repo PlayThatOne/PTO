@@ -335,6 +335,63 @@ def create_app():
         repo_dir = PROJECT_ROOT / "songs" / "tabs"
         return send_from_directory(str(repo_dir), filename)
 
+    # ==== Manifest JSON siempre disponible (aunque no exista archivo físico) ====
+    @app.route("/songs/images/artist/manifest.json")
+    def artist_manifest_json():
+        try:
+            data = _load_artist_manifest()   # devuelve {} si no hay archivo
+            return jsonify(data)
+        except Exception:
+            return jsonify({}), 200
+
+    # ==== Reconstruir manifest escaneando imágenes existentes (Disk + Repo) ====
+    @app.get("/admin/rebuild-artist-manifest")
+    def rebuild_artist_manifest():
+        import os
+        from collections import defaultdict
+        import urllib.parse as _u
+
+        # prioridad de extensiones (mejor → peor)
+        ext_priority = {".webp": 5, ".jpg": 4, ".jpeg": 3, ".png": 2, ".bmp": 1}
+        allow = set(ext_priority.keys())
+
+        def scan_dir(base):
+            found = defaultdict(lambda: ("", -1))  # artista -> (filename, score)
+            if not os.path.isdir(base):
+                return found
+            for name in os.listdir(base):
+                p = os.path.join(base, name)
+                if not os.path.isfile(p):
+                    continue
+                root, ext = os.path.splitext(name)
+                ext = ext.lower()
+                if ext not in allow:
+                    continue
+                # clave “bonita”: decodifica %20 si existiera
+                artist_key = _u.unquote(root)
+                score = ext_priority.get(ext, 0)
+                # si hay colisión, nos quedamos con el de mayor prioridad
+                if score > found[artist_key][1]:
+                    found[artist_key] = (name, score)
+            return found
+
+        # 1) Escanea disco persistente
+        disk_map = scan_dir(str(ARTIST_IMG_DIR))
+        # 2) Escanea repo (fallback)
+        repo_artist_dir = PROJECT_ROOT / "songs" / "images" / "artist"
+        repo_map = scan_dir(str(repo_artist_dir))
+
+        # Fusiona: primero repo, luego sobrescribe disco (o al revés si prefieres)
+        merged = dict(repo_map)
+        merged.update(disk_map)
+
+        manifest = {}
+        for artist_key, (filename, _) in merged.items():
+            manifest[artist_key] = _u.quote(filename)  # guardamos filename ya URL-encoded
+
+        _save_artist_manifest(manifest)
+        return jsonify({"ok": True, "count": len(manifest)})
+
     @app.route("/songs/images/<path:filename>")
     def serve_images(filename):
         p = IMAGES_DIR / filename
