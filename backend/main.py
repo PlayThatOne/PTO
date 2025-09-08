@@ -225,6 +225,7 @@ def create_app():
     TABS_DIR       = CORE_DIR / "songs" / "tabs"
     IMAGES_DIR     = CORE_DIR / "images"
     ARTIST_IMG_DIR = IMAGES_DIR / "artist"
+    THUMBS_DIR = IMAGES_DIR / "artist_thumbs"
     # === Manifest de imágenes de artistas (clave: nombre artista; valor: filename con extensión) ===
     import json as _json, urllib.parse as _urlp
 
@@ -242,11 +243,48 @@ def create_app():
         with open(ARTIST_MANIFEST, "w", encoding="utf-8") as f:
             _json.dump(d, f, ensure_ascii=False, indent=2)
 
-    for d in [LYRICS_DIR, TABS_DIR, IMAGES_DIR, ARTIST_IMG_DIR]:
+    for d in [LYRICS_DIR, TABS_DIR, IMAGES_DIR, ARTIST_IMG_DIR, THUMBS_DIR]:
         d.mkdir(parents=True, exist_ok=True)
     print(f">> LYRICS_DIR={LYRICS_DIR}")
     print(f">> TABS_DIR={TABS_DIR}")
     print(f">> IMAGES_DIR={IMAGES_DIR}")
+    # === Thumbs manifest (artist -> filename en artist_thumbs) ===
+    import json as _json, urllib.parse as _urlp, shutil as _shutil
+
+    THUMBS_MANIFEST = THUMBS_DIR / "manifest.json"
+
+    def _load_thumbs_manifest():
+        try:
+            with open(THUMBS_MANIFEST, "r", encoding="utf-8") as f:
+                return _json.load(f)
+        except Exception:
+            return {}
+
+    def _save_thumbs_manifest(d):
+        THUMBS_DIR.mkdir(parents=True, exist_ok=True)
+        with open(THUMBS_MANIFEST, "w", encoding="utf-8") as f:
+            _json.dump(d, f, ensure_ascii=False, indent=2)
+
+    def _make_thumb(src_path: Path, dst_path: Path, max_w=400, max_h=300):
+        try:
+            from PIL import Image
+        except Exception:
+            # Si no hay Pillow, copia tal cual
+            _shutil.copyfile(src_path, dst_path)
+            return
+        img = Image.open(src_path)
+        if img.mode not in ("RGB", "L", "P"):
+            img = img.convert("RGB")
+        img.thumbnail((max_w, max_h))
+        dst_path.parent.mkdir(parents=True, exist_ok=True)
+        # Intentar webp; si falla, usar extensión original
+        try:
+            img.save(dst_path.with_suffix(".webp"), "WEBP", quality=80, method=6)
+            return dst_path.with_suffix(".webp").name
+        except Exception:
+            img.save(dst_path, quality=85)
+            return dst_path.name
+
 
     # ===== RUTAS ESTÁTICAS =====
     @app.route("/")
@@ -390,6 +428,50 @@ def create_app():
             manifest[artist_key] = _u.quote(filename)  # guardamos filename ya URL-encoded
 
         _save_artist_manifest(manifest)
+        return jsonify({"ok": True, "count": len(manifest)})
+
+    # ==== Manifest de thumbs (JSON) ====
+    @app.route("/songs/images/artist_thumbs/manifest.json")
+    def artist_thumbs_manifest_json():
+        try:
+            data = _load_thumbs_manifest()
+            return jsonify(data)
+        except Exception:
+            return jsonify({}), 200
+
+    # ==== Construir/Reconstruir thumbs + manifest a partir de imágenes existentes ====
+    @app.get("/tools/build-artist-thumbs")
+    def build_artist_thumbs():
+        # Origen: imágenes de artista en disco y repo
+        sources = []
+        sources.append(ARTIST_IMG_DIR)  # backend/core/images/artist
+        repo_artist_dir = PROJECT_ROOT / "songs" / "images" / "artist"
+        sources.append(repo_artist_dir)
+
+        allow = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+        manifest = {}
+
+        for base in sources:
+            if not base.exists():
+                continue
+            for name in os.listdir(base):
+                p = base / name
+                if not p.is_file():
+                    continue
+                root, ext = os.path.splitext(name)
+                if ext.lower() not in allow:
+                    continue
+                # Clave = nombre "bonito" del artista (des-encode si venía %20)
+                artist_key = _urlp.unquote(root)
+                safe_artist = artist_key.strip().replace("/", "_").replace("\\", "_")
+                # Destino thumb (queremos .webp si es posible)
+                thumb_base = THUMBS_DIR / safe_artist
+                out_name = _make_thumb(p, thumb_base)  # devuelve nombre final
+                # Guardar en manifest (nombre ya URL-encoded para usar en URL)
+                final_name = out_name or (thumb_base.name + ext.lower())
+                manifest[artist_key] = _urlp.quote(final_name)
+
+        _save_thumbs_manifest(manifest)
         return jsonify({"ok": True, "count": len(manifest)})
 
     @app.route("/songs/images/<path:filename>")
@@ -809,19 +891,21 @@ def create_app():
             if ext not in [".jpg", ".jpeg", ".png", ".bmp", ".webp"]:
                 return "Formato no permitido", 400
 
-            # Guardar original
             safe_artist = artist.strip().replace("/", "_").replace("\\", "_")
-            filename = f"{safe_artist}{ext}"
-            save_path = ARTIST_IMG_DIR / filename
+            original_name = safe_artist + ext
+            save_path = ARTIST_IMG_DIR / original_name
             ARTIST_IMG_DIR.mkdir(parents=True, exist_ok=True)
             file.save(str(save_path))
 
-            # Actualizar manifest (guardamos el nombre ya URL-encoded)
-            manifest = _load_artist_manifest()
-            manifest[artist] = _urlp.quote(filename)  # p.ej. 'John%20Lennon.jpg'
-            _save_artist_manifest(manifest)
+            # Crear thumb y actualizar manifest de thumbs
+            created = _make_thumb(save_path, THUMBS_DIR / safe_artist)  # intenta .webp
+            final_name = created or original_name  # fallback
 
-            return "✅ Imagen subida y manifest actualizado.", 200
+            manifest = _load_thumbs_manifest()
+            manifest[artist] = _urlp.quote(final_name)
+            _save_thumbs_manifest(manifest)
+
+            return "✅ Imagen subida, miniatura creada y manifest actualizado.", 200
         except Exception as e:
             return f"❌ Error al subir imagen: {str(e)}", 500
 
