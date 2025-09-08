@@ -266,25 +266,45 @@ def create_app():
             _json.dump(d, f, ensure_ascii=False, indent=2)
 
     def _make_thumb(src_path: Path, dst_path: Path, max_w=400, max_h=300):
-        try:
-            from PIL import Image
-        except Exception:
-            # Si no hay Pillow, copia tal cual
-            _shutil.copyfile(src_path, dst_path)
-            return
-        img = Image.open(src_path)
-        if img.mode not in ("RGB", "L", "P"):
-            img = img.convert("RGB")
-        img.thumbnail((max_w, max_h))
-        dst_path.parent.mkdir(parents=True, exist_ok=True)
-        # Intentar webp; si falla, usar extensión original
-        try:
-            img.save(dst_path.with_suffix(".webp"), "WEBP", quality=80, method=6)
-            return dst_path.with_suffix(".webp").name
-        except Exception:
-            img.save(dst_path, quality=85)
-            return dst_path.name
+    """
+    Crea una miniatura en THUMBS_DIR con extensión correcta.
+    - Si Pillow está instalado: intenta .webp (quality=80). Si falla, usa la misma extensión del original.
+    - Si Pillow NO está: copia el original con la MISMA extensión.
+    Devuelve SIEMPRE el nombre de archivo final (con extensión).
+    """
+    import shutil as _shutil
+    ext = src_path.suffix.lower() or ".jpg"  # extensión original (fallback jpg)
 
+    # 1) Si no hay Pillow, copiar con extensión original
+    try:
+        from PIL import Image  # noqa
+    except Exception:
+        dst = dst_path.with_suffix(ext)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        _shutil.copyfile(src_path, dst)
+        return dst.name
+
+    # 2) Con Pillow: intentar WEBP primero
+    from PIL import Image
+    img = Image.open(src_path)
+    if img.mode not in ("RGB", "L", "P"):
+        img = img.convert("RGB")
+    img.thumbnail((max_w, max_h))
+    dst_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        dst_webp = dst_path.with_suffix(".webp")
+        img.save(dst_webp, "WEBP", quality=80, method=6)
+        return dst_webp.name
+    except Exception:
+        # Fallback: misma extensión que el original (asegurando extensión en nombre)
+        dst_ext = dst_path.with_suffix(ext)
+        try:
+            img.save(dst_ext, quality=85)
+        except Exception:
+            # Último recurso: copia literal si guardar falla
+            _shutil.copyfile(src_path, dst_ext)
+        return dst_ext.name
 
     # ===== RUTAS ESTÁTICAS =====
     @app.route("/")
