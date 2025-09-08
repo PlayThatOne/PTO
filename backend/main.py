@@ -225,6 +225,23 @@ def create_app():
     TABS_DIR       = CORE_DIR / "songs" / "tabs"
     IMAGES_DIR     = CORE_DIR / "images"
     ARTIST_IMG_DIR = IMAGES_DIR / "artist"
+    # === Manifest de imágenes de artistas (clave: nombre artista; valor: filename con extensión) ===
+    import json as _json, urllib.parse as _urlp
+
+    ARTIST_MANIFEST = ARTIST_IMG_DIR / "manifest.json"
+
+    def _load_artist_manifest():
+        try:
+            with open(ARTIST_MANIFEST, "r", encoding="utf-8") as f:
+                return _json.load(f)
+        except Exception:
+            return {}
+
+    def _save_artist_manifest(d):
+        ARTIST_MANIFEST.parent.mkdir(parents=True, exist_ok=True)
+        with open(ARTIST_MANIFEST, "w", encoding="utf-8") as f:
+            _json.dump(d, f, ensure_ascii=False, indent=2)
+
     for d in [LYRICS_DIR, TABS_DIR, IMAGES_DIR, ARTIST_IMG_DIR]:
         d.mkdir(parents=True, exist_ok=True)
     print(f">> LYRICS_DIR={LYRICS_DIR}")
@@ -730,15 +747,24 @@ def create_app():
             file = request.files["photo"]
             if file.filename == "":
                 return "Nombre de archivo vacío", 400
+
             ext = os.path.splitext(file.filename)[1].lower()
-            if ext not in [".jpg", ".jpeg", ".png", ".bmp"]:
+            if ext not in [".jpg", ".jpeg", ".png", ".bmp", ".webp"]:
                 return "Formato no permitido", 400
 
+            # Guardar original
             safe_artist = artist.strip().replace("/", "_").replace("\\", "_")
-            save_path = ARTIST_IMG_DIR / (safe_artist + ext)
+            filename = f"{safe_artist}{ext}"
+            save_path = ARTIST_IMG_DIR / filename
             ARTIST_IMG_DIR.mkdir(parents=True, exist_ok=True)
             file.save(str(save_path))
-            return "✅ Imagen subida correctamente."
+
+            # Actualizar manifest (guardamos el nombre ya URL-encoded)
+            manifest = _load_artist_manifest()
+            manifest[artist] = _urlp.quote(filename)  # p.ej. 'John%20Lennon.jpg'
+            _save_artist_manifest(manifest)
+
+            return "✅ Imagen subida y manifest actualizado.", 200
         except Exception as e:
             return f"❌ Error al subir imagen: {str(e)}", 500
 
