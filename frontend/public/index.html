@@ -459,16 +459,13 @@
             container.innerHTML = '';
             const grouped = {};
             catalog.sort((a, b) => a.title.localeCompare(b.title));
-            // Manifest de miniaturas (solo si el orden es por artista)
-            let artistThumbsManifest = {};
-            try {
-                if (ORDER_KEY === 'artist') {
-                    const r = await fetch('/songs/images/artist_thumbs/manifest.json', { cache: 'no-store' });
-                    if (r.ok) artistThumbsManifest = await r.json();
-                }
-            } catch (e) {
-                artistThumbsManifest = {};
-            }
+
+            // Manifest de miniaturas (promesa, NO bloquea el render)
+            const thumbsPromise = (ORDER_KEY === 'artist')
+              ? fetch('/songs/images/artist_thumbs/manifest.json', { cache: 'no-store' })
+                  .then(r => r.ok ? r.json() : {})
+                  .catch(() => ({}))
+              : Promise.resolve({});
 
             catalog.forEach(song => {
                 let group = song[ORDER_KEY];
@@ -477,18 +474,12 @@
                 grouped[group].push(song);
                 songCatalog[song.id] = song;
             });
-            // Cargar manifest solo cuando el orden es por artista
-            let artistImgManifest = {};
-            try {
-              if (ORDER_KEY === 'artist') {
-                const r = await fetch('/songs/images/artist/manifest.json', { cache: 'no-store' });
-                if (r.ok) artistImgManifest = await r.json();
-              }
-            } catch (e) {
-              artistImgManifest = {};
-            }
 
             const keys = Object.keys(grouped).sort();
+
+            // contenedores de imagen por artista (se rellenan después)
+            const imgTargets = {};
+
             for (const artist of keys) {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'group';
@@ -507,9 +498,6 @@
                     groupHeader.textContent = artist;
                 }
 
-                const safe = encodeURIComponent(artist);
-                let inserted = false;
-
                 // Primero la columna izquierda (título + canciones)
                 const leftContainer = document.createElement('div');
                 leftContainer.className = 'group-left';
@@ -521,26 +509,10 @@
                 imgContainer.className = 'group-right';
                 wrapper.appendChild(imgContainer);
 
+                // guarda el destino donde inyectar la imagen de este artista
                 if (ORDER_KEY === 'artist') {
-                    // Buscar entrada exacta en el manifest
-                    const file = artistThumbsManifest[artist] || null;
-
-                    if (file) {
-                        const img = document.createElement('img');
-                        img.alt = artist;
-                        img.loading = 'lazy';
-                        img.decoding = 'async';
-                        img.width = 400;
-                        img.height = 300;
-                        img.style.marginLeft = '10px';
-                        img.src = `/songs/images/artist_thumbs/${file}`;
-                        imgContainer.appendChild(img);
-                        if (typeof adjustImageHeights === 'function') adjustImageHeights();
-                    }
+                  imgTargets[artist] = imgContainer;
                 }
-
-               // si el orden no es 'artist', puedes dejar sin imagen o tu lógica anterior específica (por año/lengua/etc.)
-
 
                 grouped[artist].forEach(song => {
                     const div = document.createElement('div');
@@ -553,7 +525,43 @@
                 });
                 container.appendChild(wrapper);
             }
+
+            // la UI ya está lista → ocultar loader
             hideLoader();
+
+            // cuando llegue el manifest, inyectar imágenes sin bloquear al usuario
+            thumbsPromise.then((artistThumbsManifest) => {
+              function variantsFor(k){
+                const v = [];
+                v.push(k);
+                v.push(k.replace(/\//g, "_"));                 // AC/DC -> AC_DC
+                v.push(k.replace(/[’'´`]/g, ""));              // quita apóstrofes
+                v.push(k.normalize('NFD').replace(/\p{Diacritic}/gu,'')); // sin tildes
+                v.push(k.replace(/\s+/g,' ').trim());          // espacios
+                return [...new Set(v)];
+              }
+
+              for (const [artist, el] of Object.entries(imgTargets)) {
+                let file = null;
+                for (const key of variantsFor(artist)) {
+                  if (artistThumbsManifest[key]) { file = artistThumbsManifest[key]; break; }
+                }
+                if (!file) continue;
+
+                const img = document.createElement('img');
+                img.alt = artist;
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                img.width = 400;
+                img.height = 300;
+                img.style.marginLeft = '10px';
+                img.src = `/songs/images/artist_thumbs/${file}`;
+
+                el.innerHTML = '';
+                el.appendChild(img);
+                if (typeof adjustImageHeights === 'function') adjustImageHeights();
+              }
+            });
         }
 
         socket.on('update', (data) => {
@@ -598,7 +606,7 @@
             btn.textContent = container.classList.contains("collapsed") ? "▼" : "▲";
         });
         
-        // Carga diferida de imágenes
+        // Carga diferida de imágenes (no usada ahora, pero se deja por si vuelves a usar makeLazyImg)
         const imgIO = new IntersectionObserver((entries)=>{
           entries.forEach(e=>{
             if (e.isIntersecting) {
