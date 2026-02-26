@@ -930,5 +930,5 @@ def create_app():
 
     return app
 
-# Instance pour Gunicorn
+# Instance exposée pour Gunicorn : gunicorn main:app
 app = create_app()
