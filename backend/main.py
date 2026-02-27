@@ -193,6 +193,18 @@ def create_app():
     print(f">> index.html existe? {idx.exists()}  ({idx})")
 
     socketio.init_app(app, cors_allowed_origins="*")
+
+    @app.route("/debug-files")
+def debug_files():
+    import os
+    result = {}
+    thumbs = PUBLIC_DIR / "songs" / "images" / "artist_thumbs"
+    artist = PUBLIC_DIR / "songs" / "images" / "artist"
+    result["thumbs_exists"] = str(thumbs.exists())
+    result["artist_exists"] = str(artist.exists())
+    result["thumbs_files"] = os.listdir(str(thumbs)) if thumbs.exists() else []
+    result["artist_files"] = os.listdir(str(artist)) if artist.exists() else []
+    return jsonify(result)
     # ---- AUTH endpoints ----
     @app.post("/auth/login")
     def auth_login():
