@@ -102,7 +102,7 @@ FAILED=0
 while IFS= read -r file; do
   [ -z "$file" ] && continue
   
-  ENCODED=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$file'))")
+  ENCODED=$(echo "$file" | python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().strip()))")
   DEST="$ARTIST_DIR/$file"
   
   echo -n "   Téléchargement : $file ... "
