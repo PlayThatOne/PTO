@@ -461,11 +461,10 @@
             catalog.sort((a, b) => a.title.localeCompare(b.title));
 
             // Manifest de miniaturas (promesa, NO bloquea el render)
-            const thumbsPromise = (ORDER_KEY === 'artist')
-              ? fetch('/songs/images/artist_thumbs/manifest.json', { cache: 'no-store' })
-                  .then(r => r.ok ? r.json() : {})
-                  .catch(() => ({}))
-              : Promise.resolve({});
+            const artistFiles = ["Alex Gaudino.jpeg","Bob Dylan.jpeg","Buffalo Springfield.jpg","Cheap Trick.jpeg","Desireless.jpeg","Dusty Springfield.jpg","Elvis Presley.jpeg","Georges Brassens.jpg","Gilbert O'Sullivan.jpg","Gloria Gaynor.jpg","Jefferson Airplane.jpeg","John Lennon.jpg","John Mayer.jpg","Leonard Cohen.jpg","Los Prisioneros.jpeg","Lynyrd Skynyrd.jpeg","Oasis.jpeg","PTO.jpg","Seal.jpeg","Sia.jpg","Simple Minds.jpg","Styx.jpg","The Beatles.jpg","The Hollies.jpeg","The Righteous Brothers.jpg","The Rolling Stones.png","The Who.jpeg","Vera Lynn.jpeg"];
+            const artistManifest = {};
+            artistFiles.forEach(f => { artistManifest[f.replace(/\.[^.]+$/, '')] = f; });
+            const thumbsPromise = (ORDER_KEY === 'artist') ? Promise.resolve(artistManifest) : Promise.resolve({});
 
             catalog.forEach(song => {
                 let group = song[ORDER_KEY];
